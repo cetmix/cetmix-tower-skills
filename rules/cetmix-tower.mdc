@@ -1,0 +1,56 @@
+---
+description: Cetmix Tower entity authoring — apply when creating, reviewing or fixing Cetmix Tower records (flight plans, commands, jet templates, variables, secrets, file templates, servers, waypoints, scheduled tasks, webhooks), or any Cetmix Tower YAML file. Triggers include "flight plan", "jet template", "cetmix tower command", "deploy X with Tower", "tower yaml".
+globs:
+alwaysApply: false
+---
+#rule[Cetmix Tower — entity authoring]
+
+## Canonical sources
+
+Detailed guidance lives in skills, installed as sibling directories under the skills root
+(`.cursor/skills/` for Cursor, `.claude/skills/` for Claude Code, or `skills/`
+when read straight from this repository). Open the relevant `<skill>/SKILL.md` **before** writing
+YAML — the paths below are skill names, not paths relative to this rule file. The same
+holds for cross-skill pointers inside the skills: `cetmix-tower-yaml/references/…`
+resolves against the skills root, while a bare `references/…` is relative to the skill
+quoting it.
+
+| Skill | Read it for |
+|---|---|
+| `cetmix-tower` | **Start here.** `references/hard-rules.md` (the canonical rule list), workflow, decision guide, entity map, worked example |
+| `cetmix-tower-yaml` | File structure, model names, relational syntax, allowed fields |
+| `cetmix-tower-api` | Creating entities from code — `execute_kw`, ORM vs importer, contexts, access rights, upsert, operations |
+| `cetmix-tower-command-actions` | The six `action` values; `plan`, `jet_action`, `create_waypoint`, `file_using_template`; exit codes |
+| `cetmix-tower-command-ssh` | `action: ssh_command` |
+| `cetmix-tower-command-python` | `action: python_code` |
+| `cetmix-tower-flight-plan` | `plan`, `plan_line`, post-run actions |
+| `cetmix-tower-variables` | `variable`, `variable_option`, `variable_value` |
+| `cetmix-tower-secrets` | `key` — secrets and SSH keys |
+| `cetmix-tower-files` | `file_template`, `file` |
+| `cetmix-tower-jets` | `jet_template`, `jet_state`, `jet_action` |
+| `cetmix-tower-waypoints` | `jet_waypoint_template` |
+| `cetmix-tower-servers` | `server`, `server_template`, `server_log`, `shortcut`, `os`, `tag` |
+| `cetmix-tower-automation` | `scheduled_task`, `webhook`, `git_*` |
+
+## Hard rules
+
+All seventeen rules, the authority order, and the validation-honesty rule live in **one
+canonical file** — the `cetmix-tower` skill's `references/hard-rules.md`. **Read it before
+writing any Tower record.** Rules are maintained only there; the five below are a
+shortlist, not the full set.
+
+1. Never propose manual SSH or a shell script. Everything is a Command, Flight Plan, Jet
+   Template, Variable, Secret, File Template or Waypoint.
+2. One Command = one statement, for `action: ssh_command`. No `&&`, `||`, `;`. No `cd` —
+   use `path`. No inline `sudo` — use `use_sudo` on the plan line. Shell-side only:
+   `python_code` is ordinary Python and may use `;`.
+3. Never invent a field. Only fields in the `cetmix-tower-yaml` skill's
+   `references/model-fields.md` are imported; anything else is silently dropped.
+4. Never hardcode a secret, token, password or private key, and never store one in a
+   variable. Create a `key` record and reference it as `#!cxtower.secret.<ref>!#`.
+5. The YAML model for a Flight Plan is `plan`, never `flight_plan`. A plan line uses
+   `command_id`, never `command`.
+
+Never answer from memory, a forum or a blog. Cetmix Tower source code beats the docs, which
+beat these skills — when code and docs disagree, say so. Reading YAML is not validating it:
+either run the import, or state plainly that the file is **not runtime-validated**.
