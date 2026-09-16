@@ -262,7 +262,8 @@ YAML or a `(0, 0, {...})` tuple); a standalone `create` must pass it explicitly.
 The API user's groups decide what it can create. Full matrix:
 `references/access-matrix.md`. The traps:
 
-The groups imply each other — `group_root` → `group_manager` → `group_user` — so a
+The groups imply each other — `cetmix_tower_base.group_root` →
+`cetmix_tower_base.group_manager` → `cetmix_tower_base.group_user` — so a
 level's effective rights are the union of its own rules and every lower level's.
 
 - **`cx.tower.os`** — Manager gets read only (inherited from User). Creating an OS needs
@@ -448,8 +449,10 @@ workflow implies.
 
 `cx.tower.key.secret_value`, `cx.tower.key.value.secret_value`,
 `cx.tower.server.ssh_password` and `cx.tower.server.host_key` are declared as
-`SECRET_FIELDS` on the vault mixin. `create` and `write` intercept them, store the value
-in `cx.tower.vault` outside the main table, and NULL the column. So:
+`SECRET_FIELDS` on the vault mixin (`cetmix_tower_base/models/cx_tower_vault_mixin.py`).
+`create` and `write` intercept them, store the value in `cx.tower.vault` outside the
+main table, and NULL the column. Direct reads and writes of `cx.tower.vault` without
+`sudo` raise `AccessError` — no group has ACL rights. So:
 
 ```python
 env["cx.tower.key"].create({

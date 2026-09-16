@@ -24,8 +24,11 @@ Regenerate after a Tower upgrade:
 
 ```bash
 cat cetmix_tower_*/security/ir.model.access.csv
-grep -A 3 "group_root\|group_manager" cetmix_tower_server/security/cetmix_tower_server_groups.xml
+grep -A 3 "group_root\|group_manager" cetmix_tower_base/security/cetmix_tower_base_groups.xml
 ```
+
+Group xmlids: `cetmix_tower_base.group_user`, `cetmix_tower_base.group_manager`,
+`cetmix_tower_base.group_root`.
 
 | Model                                    | User | Manager | Root |
 | ---------------------------------------- | ---- | ------- | ---- |
@@ -108,7 +111,7 @@ records from YAML"_ if the user has export but not import rights.
 | `cx.tower.git.repo.owner`                                           | Manager can create but **not delete**.                                                                       |
 | `cx.tower.jet.template`, `cx.tower.jet.template.dependency`         | Manager `RWCD`, no Root rule — Root still gets `RWCD` through group implication.                             |
 | `cx.tower.command.log`, `cx.tower.plan.log`, `cx.tower.webhook.log` | **Read-only for everyone.** Never write them.                                                                |
-| `cx.tower.vault`                                                    | No group has access. Internal only.                                                                          |
+| `cx.tower.vault`                                                    | No group has access. Internal only. ORM and `execute_kw` without `sudo` raise `AccessError`.                 |
 | `cx.tower.jet.template.install`, `…install.line`                    | Manager read-only; Root creates. Use `jet_template.install_on_servers()` rather than writing these directly. |
 
 ## Record rules apply on top

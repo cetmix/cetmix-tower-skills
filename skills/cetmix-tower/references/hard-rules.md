@@ -129,10 +129,13 @@ jet=...)` with no `variable_values`, so the file renders from stored Jet →
 
 Never answer from memory, a forum or a blog:
 
-1. **Cetmix Tower source code** — `cetmix_tower_server/models/*.py` for fields,
-   selections and constraints; `cetmix_tower_yaml/models/*.py` (`_get_fields_for_yaml`)
+1. **Cetmix Tower source code** — `cetmix_tower_base/models/*.py` (tags, vault,
+   shared mixins) and `cetmix_tower_server/models/*.py` for fields, selections and
+   constraints; `cetmix_tower_yaml/models/*.py` (`_get_fields_for_yaml`)
    for the exact importable field list per model. Optional modules extend both — check
-   `cetmix_tower_git/models/` and `cetmix_tower_webhook/models/` too.
+   `cetmix_tower_git/models/` and `cetmix_tower_webhook/models/` too. Groups live in
+   `cetmix_tower_base/security/cetmix_tower_base_groups.xml`
+   (`cetmix_tower_base.group_user`, `group_manager`, `group_root`).
 2. **Official documentation** — the `cetmix-tower-doc` mkdocs tree (external to this
    repo): `mkdocs/docs/developer-guidelines/yaml_format_specification.md` and
    `mkdocs/docs/reference/**`.

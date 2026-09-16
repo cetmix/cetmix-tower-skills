@@ -1,8 +1,8 @@
 # Selection field values
 
 YAML carries the selection **key**, never the human label. Verified against
-`cetmix_tower_server/models/*.py`, `cetmix_tower_webhook/models/*.py` and
-`cetmix_tower_git/models/*.py`.
+`cetmix_tower_base/models/*.py`, `cetmix_tower_server/models/*.py`,
+`cetmix_tower_webhook/models/*.py` and `cetmix_tower_git/models/*.py`.
 
 ## `access_level` — the one exception
 

@@ -4,7 +4,8 @@
 know the asymmetries before promising a workflow.
 
 Verified against `cetmix_tower_yaml/models/cx_tower_yaml_mixin.py`, the import wizard,
-`cx_tower_vault_mixin.py` and the per-model `_get_fields_for_yaml()` lists.
+`cetmix_tower_base/models/cx_tower_vault_mixin.py` and the per-model
+`_get_fields_for_yaml()` lists.
 
 ---
 
