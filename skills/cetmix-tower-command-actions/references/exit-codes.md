@@ -47,7 +47,7 @@ code, not silently omitted.
 
 | Code   | Constant               | Meaning                                                                                  |
 | ------ | ---------------------- | ---------------------------------------------------------------------------------------- |
-| `-400` | `FILE_CREATION_FAILED` | Could not create the file. With `if_file_exists: raise` this is _"File already exists"_. |
+| `-400` | `FILE_CREATION_FAILED` | Could not create the file. With `if_file_exists: raise` this is _"File already exists"_. Also the status `git_project_upload` writes on an exception. |
 | `-401` | `FILE_UPLOAD_FAILED`   | Push to the host failed                                                                  |
 | `-402` | `FILE_DOWNLOAD_FAILED` | Pull from the host failed                                                                |
 

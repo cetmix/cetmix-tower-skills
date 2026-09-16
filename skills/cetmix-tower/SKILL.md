@@ -80,7 +80,7 @@ A complete, verified example of both shapes for the same request ("deploy Redis"
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `cetmix-tower-yaml`            | File structure, model names, relational syntax, embed vs reference, import procedure, allowed-field reference                      |
 | `cetmix-tower-api`             | Creating entities from code — `execute_kw`, ORM vs importer differences, contexts, access rights, upsert, running things           |
-| `cetmix-tower-command-actions` | Choosing the `action`; the four orchestration actions (`plan`, `jet_action`, `create_waypoint`, `file_using_template`); exit codes |
+| `cetmix-tower-command-actions` | Choosing the `action`; the five orchestration actions (`plan`, `jet_action`, `create_waypoint`, `file_using_template`, `git_project_upload`); exit codes |
 | `cetmix-tower-command-ssh`     | `action: ssh_command` — the shell-side rules                                                                                       |
 | `cetmix-tower-command-python`  | `action: python_code` — eval context, `result`, `custom_values`, metadata, provider APIs                                           |
 | `cetmix-tower-flight-plan`     | `plan`, `plan_line`, conditions, post-run actions, error handling, sub-plans                                                       |
@@ -118,8 +118,9 @@ _Every path:_
       one-statement rule is shell-side only — `python_code` may of course use `;`).
 - [ ] Every plan has at least one `line_ids` entry, and every line has a `command_id`.
 - [ ] Each command's `action` has its required companion field set, and commands with
-      action `plan`, `jet_action`, `create_waypoint` or `file_using_template` are
-      reached through a flight plan (they have no ad-hoc run path).
+      action `plan`, `jet_action`, `create_waypoint`, `file_using_template` or
+      `git_project_upload` are reached through a flight plan (they have no ad-hoc run
+      path).
 - [ ] For jet templates: exactly one action with no `state_from_id` (create), exactly
       one with no `state_to_id` (destroy), every action has `state_transit_id`, and
       Build and Start use **different** plans (hard rule 11). Actions that do different

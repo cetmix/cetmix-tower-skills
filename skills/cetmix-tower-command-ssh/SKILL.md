@@ -181,7 +181,8 @@ container stopped.
 System values are available as `tower.server.*` and `tower.tools.*` — see
 `cetmix-tower-variables`.
 
-`variable_ids` on the command is **computed from `code` and `path`**, `secret_ids` from
+`variable_ids` on the command is **computed from `code` and `path`** (and
+`git_file_name` when `cetmix_tower_git` is installed), `secret_ids` from
 `code` only; do not hand-maintain either. But the referenced `variable` and `key`
 records must exist, so declare them in the same YAML file.
 

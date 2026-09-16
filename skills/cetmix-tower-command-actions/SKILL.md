@@ -1,18 +1,16 @@
 ---
 name: cetmix-tower-command-actions
 description:
-  Choose and wire the right Cetmix Tower command action, and author the four
-  orchestration actions in depth — plan (run a child flight plan), jet_action (trigger a
-  Jet lifecycle action on itself or on dependent Jets), create_waypoint (snapshot a Jet
-  from inside a plan), and file_using_template (render and push or pull a file). Covers
-  required companion fields, execution semantics, exit codes and the flight-plan-only
-  restriction. Use when a command must orchestrate something rather than run a shell
-  statement or Python.
+  Choose and wire the right Cetmix Tower command action, and author the orchestration
+  actions in depth — plan, jet_action, create_waypoint, file_using_template, and
+  git_project_upload. Covers required companion fields, execution semantics, exit codes
+  and the flight-plan-only restriction. Use when a command must orchestrate something
+  rather than run a shell statement or Python.
 ---
 
 # Command actions
 
-`command.action` is required and has exactly six values. Two run code; four orchestrate.
+`command.action` is required and has seven values. Two run code; five orchestrate.
 
 | Action                | Runs                                        | Companion fields                                                   | Form-required?     | Available in the run wizard? |
 | --------------------- | ------------------------------------------- | ------------------------------------------------------------------ | ------------------ | ---------------------------- |
@@ -22,6 +20,7 @@ description:
 | `plan`                | A child flight plan                         | `flight_plan_id`                                                   | Yes                | **No**                       |
 | `jet_action`          | A Jet lifecycle transition                  | `jet_template_id`, `jet_action_id`                                 | Yes                | **No**                       |
 | `create_waypoint`     | Creates a Jet waypoint                      | `waypoint_template_id`, optionally `fly_here`                      | Yes                | **No**                       |
+| `git_project_upload`  | Writes the Jet's Git Project to a file      | `path`, `git_file_name`                                            | Yes                | **No**                       |
 
 `code` is not `required=True` on the model, and the command form marks it required only
 for `action: python_code`. An `ssh_command` with an empty `code` therefore saves and
@@ -29,23 +28,25 @@ imports without complaint, and simply does nothing at run time. Nothing will tel
 check it yourself.
 
 For the two code actions see `cetmix-tower-command-ssh` and
-`cetmix-tower-command-python`. This skill covers the other four.
+`cetmix-tower-command-python`. This skill covers the other five.
 
 ## Flight-plan-only is a hard restriction
 
 The ad-hoc **Run Command** wizard offers only `ssh_command` and `python_code`, and
-filters the selectable commands to the chosen action. The other four actions have no
+filters the selectable commands to the chosen action. The other five actions have no
 wizard path at all — they run only as a **flight plan line**.
 
 Consequences when designing:
 
-- A `file_using_template`, `plan`, `jet_action` or `create_waypoint` command needs a
-  plan wrapping it, even if the plan has a single line.
+- A `file_using_template`, `plan`, `jet_action`, `create_waypoint` or
+  `git_project_upload` command needs a plan wrapping it, even if the plan has a single
+  line.
 - A `shortcut` or `scheduled_task` that should trigger one must use `action: plan` and
   point at that wrapper plan, not `action: command`.
 - `jet_action` and `create_waypoint` additionally require a **Jet context** — the plan
   must be run on a Jet (from a Jet form, a jet lifecycle action, or a waypoint plan),
-  not on a bare server.
+  not on a bare server. `git_project_upload` should also run on a Jet, but without a
+  Jet (or without a project) it finishes with status `0` and creates no file.
 
 ## `action: plan` — run a child flight plan
 
@@ -239,14 +240,42 @@ See `cetmix-tower-waypoints` for the waypoint templates themselves.
 
 See `cetmix-tower-files` for the template side.
 
+## `action: git_project_upload` — write the Jet's Git Project
+
+Needs `cetmix_tower_git`. Companion fields: `path` (directory) and `git_file_name`
+(file name, variables allowed). Run on a Jet.
+
+```yaml
+- cetmix_tower_model: command
+  reference: upload_git_project
+  name: Upload Git Project
+  action: git_project_upload
+  access_level: manager
+  note: Writes the Jet's Git Project to /opt/git/repos.yml.
+  path: /opt/git
+  git_file_name: repos.yml
+```
+
+- Every run reuses the file record with the same Jet and full path, or creates it with
+  `auto_sync` on, regenerates the content and pushes. There is no "changed?" check.
+- No Jet, or a Jet without a project: status `0`, message _"No Git Project to upload"_,
+  no file created.
+- On an exception: `FILE_CREATION_FAILED (-400)` and the error.
+- This does **not** use plan line `git_project_id` / `is_make_copy` or
+  `__git_project__`. Those remain **legacy**, kept only for servers that do not use
+  Jets. New setups should link the Git Project to the Jet (Jet **Git Project** tab or
+  the wizards) and write it with this command. See `cetmix-tower-automation`. For
+  code, use the repo-line methods in `cetmix-tower-api`.
+
 ## `server_status` applies to more than SSH
 
 `command.server_status` sets the **server's** status on success, and it is honoured for
-**all six** actions — `ssh_command`, `python_code`, `file_using_template`, `jet_action`,
-`create_waypoint` and `plan`. The runner only skips the status write when no runner
-matched the action at all. Setting it on an orchestration command is usually wrong — a
-child plan finishing does not mean the host changed state. Leave it empty unless the
-command genuinely represents a host transition.
+**all seven** actions — `ssh_command`, `python_code`, `file_using_template`,
+`jet_action`, `create_waypoint`, `plan` and `git_project_upload`. The runner only skips
+the status write when no runner matched the action at all. Setting it on an
+orchestration command is usually wrong — a child plan finishing does not mean the host
+changed state. Leave it empty unless the command genuinely represents a host
+transition.
 
 ## Choosing between them
 
@@ -257,6 +286,7 @@ command genuinely represents a host transition.
 | Re-enter the current Jet's own lifecycle | `jet_action` with the **same** template  |
 | Back up before a risky step              | `create_waypoint`                        |
 | Write a config file                      | `file_using_template`                    |
+| Write the Jet's Git Project to a file    | `git_project_upload`                     |
 | Anything on the host                     | `ssh_command`                            |
 | Anything in Tower, or an HTTP API        | `python_code`                            |
 
@@ -265,9 +295,12 @@ command genuinely represents a host transition.
 - [ ] The action's required companion fields are all set
 - [ ] `flight_plan_id` only with `action: plan`; `jet_action_id` + `jet_template_id`
       only with `jet_action`; `waypoint_template_id` only with `create_waypoint`;
-      `file_template_id` only with `file_using_template`
+      `file_template_id` only with `file_using_template`; `path` + `git_file_name` with
+      `git_project_upload`
 - [ ] `jet_action_id` belongs to `jet_template_id`
 - [ ] For `jet_action` / `create_waypoint`: the plan really runs in a Jet context
+- [ ] For `git_project_upload`: the plan runs on a Jet that has a Git Project, unless
+      a silent success is intended
 - [ ] For `jet_action` across templates: a `jet_template_dependency` links them, and the
       silent-no-op case is acceptable or explicitly verified
 - [ ] No plan calls itself directly or transitively

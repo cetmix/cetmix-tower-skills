@@ -68,6 +68,26 @@ one-shot host action, a plain Flight Plan is the right answer — see
 Install/uninstall/clone plans are a **different axis** from the lifecycle. Installing a
 template on a server prepares the host; the lifecycle governs each Jet on it.
 
+## Git file on a Jet
+
+A Jet Template gets a git checkout file from two pieces:
+
+1. The Jet's Git Project (launch wizard, clone wizard, Jet **Git Project** tab, or the
+   repo-line API — `cetmix-tower-api`).
+2. A flight plan line whose command has `action: git_project_upload`, with `path` and
+   `git_file_name`. Put that command on a Prepare/Build plan so the file exists before
+   aggregator or clone steps run.
+
+Do not use plan line `git_project_id` / `is_make_copy` or `__git_project__` for new
+templates — that path is **legacy**, kept only for servers that do not use Jets. New
+setups should link the Git Project to the Jet (Jet **Git Project** tab or the wizards)
+and write it to the host with **Upload Git Project**. See `cetmix-tower-automation`.
+For code, use the repo-line methods in `cetmix-tower-api`.
+
+With clone **Copy parent**, source references on the copy differ from the parent's, so
+checkout directories in the generated file differ. The clone plan must use the clone's
+own git file.
+
 ## States — reuse, never redefine
 
 Eleven `jet_state` records ship with Tower. Their references are the lowercased names:

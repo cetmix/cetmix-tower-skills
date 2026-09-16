@@ -20,7 +20,7 @@ quoting it.
 | `cetmix-tower` | **Start here.** `references/hard-rules.md` (the canonical rule list), workflow, decision guide, entity map, worked example |
 | `cetmix-tower-yaml` | File structure, model names, relational syntax, allowed fields |
 | `cetmix-tower-api` | Creating entities from code — `execute_kw`, ORM vs importer, contexts, access rights, upsert, operations |
-| `cetmix-tower-command-actions` | The six `action` values; `plan`, `jet_action`, `create_waypoint`, `file_using_template`; exit codes |
+| `cetmix-tower-command-actions` | The seven `action` values; `plan`, `jet_action`, `create_waypoint`, `file_using_template`, `git_project_upload`; exit codes |
 | `cetmix-tower-command-ssh` | `action: ssh_command` |
 | `cetmix-tower-command-python` | `action: python_code` |
 | `cetmix-tower-flight-plan` | `plan`, `plan_line`, post-run actions |

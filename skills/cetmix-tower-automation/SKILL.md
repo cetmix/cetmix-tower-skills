@@ -161,34 +161,52 @@ Working examples for API-key and GitHub authentication exist in the
 
 ## Git projects
 
-Repository definitions that render into files (e.g. git-aggregator format), used to
-drive source checkouts on hosts.
+Link repositories to a **Jet**, then write them to the host with **Upload Git Project**.
+That is the current method. See `cetmix-tower-jets` for how a Jet Template ships the
+upload command, and `cetmix-tower-api` for the repo-line methods
+(`get_repo_lines` / `add_repo_lines` / `set_repo_lines` on `cx.tower.git.project`,
+and `get_git_repo_lines` / `add_git_repo_lines` / `set_git_repo_lines` on
+`cx.tower.jet`).
 
-| Model             | Placement                                   | Fields                                                        |
-| ----------------- | ------------------------------------------- | ------------------------------------------------------------- |
-| `git_project`     | top-level                                   | `name`, `note`, `source_ids`, `git_aggregator_root_dir`       |
-| `git_source`      | nest under `source_ids`                     | `name`, `enabled`, `sequence`, `remote_ids`                   |
-| `git_remote`      | nest under `remote_ids`                     | `name`, `enabled`, `sequence`, `repo_id`, `head`, `head_type` |
-| `git_repo`        | top-level                                   | `url`, `is_private`, `secret_id`                              |
-| `git_repo_owner`  | top-level                                   | `display_name`, `name`, `secret_id`                           |
-| `git_project_rel` | **nest** under `server.git_project_rel_ids` | `file_id`, `git_project_id`, `project_format`, `auto_sync`    |
+A Jet has one `git_project_id`. Set it from the launch wizard (`add_repositories`:
+`no` / `existing` / `repos`), the clone wizard (`git_project_mode`: `copy` / `keep` /
+`select` / `repos`), the Jet **Git Project** tab, or those API methods. The upload
+command (`action: git_project_upload`) takes `path` (directory) and `git_file_name`.
+If there is no Jet or no project, it finishes with status 0 and creates no file.
 
-`head_type`: `branch` · `pr` · `commit`. `project_format`: `git_aggregator`.
+`secret_id` on `git_repo` and `git_repo_owner` is **not currently used**. Private
+HTTPS URLs use environment placeholders (`$GITHUB_TOKEN`,
+`$GITLAB_TOKEN_NAME:$GITLAB_TOKEN`, `$BITBUCKET_TOKEN`).
 
-`git_project_rel` must be nested: `server_id` is `required=True` on the model but is
-**not** in its YAML field list, so a top-level record has no way to satisfy the owner
-link and the import fails. `server.git_project_rel_ids` is added by `cetmix_tower_git`
-and is the only importable path. `file_id` and `git_project_id` are required too, and
-`file_id`'s file must belong to the same server (`_check_server_file_relation`).
+YAML still authors the nested source/remote tree:
 
-The Git module also adds `git_project_id` and `is_make_copy` to `plan_line`, and these
-have a side effect that lives only in `cetmix_tower_git`'s `cx.tower.server` override:
-when a `file_using_template` line runs, the created file is linked to a Git project by
-creating a `cx.tower.git.project.rel` for `(server, file, project)`. The project comes
-from the line's `git_project_id`, or from `custom_values["__git_project__"]` (a project
-_reference_), which wins when set. An unresolvable `__git_project__` reference only logs
-a warning and leaves the file unlinked. With `is_make_copy` the project is **copied**
-per server first, so each server gets its own project record.
+| Model            | Placement               | Fields                                                        |
+| ---------------- | ----------------------- | ------------------------------------------------------------- |
+| `git_project`    | top-level               | `name`, `note`, `source_ids`, `git_aggregator_root_dir`       |
+| `git_source`     | nest under `source_ids` | `name`, `enabled`, `sequence`, `remote_ids`                   |
+| `git_remote`     | nest under `remote_ids` | `name`, `enabled`, `sequence`, `repo_id`, `head`, `head_type` |
+| `git_repo`       | top-level               | `url`, `is_private`, `secret_id`                              |
+| `git_repo_owner` | top-level               | `display_name`, `name`, `secret_id`                           |
+
+`head_type`: `branch` · `pr` · `commit`. `project_format`: `git_aggregator` (hidden in
+the UI).
+
+**Legacy**, kept only for servers that do not use Jets. New setups should link the Git
+Project to the Jet (Jet **Git Project** tab or the wizards) and write it to the host
+with the **Upload Git Project** command. For code, use the repo-line methods in
+`cetmix-tower-api`.
+
+- `git_project_rel` under `server.git_project_rel_ids`. `server_id` is `required=True`
+  on the model but is **not** in its YAML field list, so a top-level record cannot
+  import. `file_id` must belong to the same server (`_check_server_file_relation`).
+  YAML fields: `file_id`, `git_project_id`, `project_format`, `auto_sync`.
+- Plan line `git_project_id` / `is_make_copy` and `custom_values["__git_project__"]`.
+  When a `file_using_template` line runs, `cetmix_tower_git` links the created file
+  through `cx.tower.git.project.rel`. `__git_project__` (a project _reference_) wins
+  when set. An unresolvable reference only logs a warning. With `is_make_copy` the
+  project is copied per server. This never writes the Jet's `git_project_id`.
+- `tower.servers_by_git_ref` / `get_servers_by_git_ref`: servers linked through those
+  legacy file relations.
 
 Computed fields to know about. `git_repo_owner.reference` is a stored compute on `name`
 with no guard, so an authored `reference:` is silently overwritten and the owner will
@@ -198,10 +216,9 @@ reference follows the URL and an authored one is discarded. `git_repo.name` is n
 importable at all. `git_remote.name` is computed as `remote_<n>` from position, so
 authoring it does nothing.
 
-**The documentation page for Git is out of date** — it shows `url`, `is_private` and
-`repo_provider` on `git_remote`, but the URL and privacy flag now live on `git_repo`.
-Read `cetmix_tower_git/models/*.py` before authoring Git YAML, and tell the user you
-did.
+**The documentation page for Git** now documents Jet Git Projects first. Repository URL
+and privacy still live on `git_repo`, not on `git_remote`. Read
+`cetmix_tower_git/models/*.py` before authoring Git YAML, and tell the user you did.
 
 ## Choosing a trigger
 

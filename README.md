@@ -56,8 +56,9 @@ cetmix-tower-skills/
     │   └── references/
     │       ├── yaml-vs-api.md            what each path can and cannot do
     │       └── access-matrix.md          per-model ACL, generated from security CSVs
-    ├── cetmix-tower-command-actions/     the six actions; plan, jet_action,
-    │   │                                 create_waypoint, file_using_template
+    ├── cetmix-tower-command-actions/     the seven actions; plan, jet_action,
+    │   │                                 create_waypoint, file_using_template,
+    │   │                                 git_project_upload
     │   └── references/exit-codes.md      every Tower exit code and how to branch on it
     ├── cetmix-tower-command-ssh/         action: ssh_command
     ├── cetmix-tower-command-python/      action: python_code

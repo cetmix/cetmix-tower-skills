@@ -31,13 +31,15 @@ Do the same for `_get_force_x2m_resolve_models` — `cetmix_tower_git` extends t
 ### `command` — `cx.tower.command`
 
 `reference`, `access_level`, `name`, `action`, `allow_parallel_run`, `note`, `os_ids`,
-`tag_ids`, `path`, `file_template_id`, `if_file_exists`, `disconnect_file`,
-`flight_plan_id`, `jet_template_id`, `jet_action_id`, `waypoint_template_id`,
-`fly_here`, `code`, `no_split_for_sudo`, `server_status`, `variable_ids`, `secret_ids`
+`tag_ids`, `path`, `git_file_name`, `file_template_id`, `if_file_exists`,
+`disconnect_file`, `flight_plan_id`, `jet_template_id`, `jet_action_id`,
+`waypoint_template_id`, `fly_here`, `code`, `no_split_for_sudo`, `server_status`,
+`variable_ids`, `secret_ids`
 
 - `name` and `action` are required.
-- `variable_ids` is **computed from `code` and `path`**, `secret_ids` from `code` only —
-  Tower fills both. Declare the `variable` and `key` records themselves instead.
+- `variable_ids` is **computed from `code`, `path` and `git_file_name`**, `secret_ids`
+  from `code` only — Tower fills both. Declare the `variable` and `key` records
+  themselves instead.
 - `server_ids` is **not** importable: imported commands are available to all servers.
 
 ### `plan` — `cx.tower.plan`
@@ -51,6 +53,8 @@ Do the same for `_get_force_x2m_resolve_models` — `cetmix_tower_git` extends t
 
 `reference`, `sequence`, `condition`, `use_sudo`, `path`, `command_id`, `action_ids`,
 `variable_ids` With `cetmix_tower_git` also: `git_project_id`, `is_make_copy`
+(**legacy**, kept only for servers that do not use Jets; new setups use Jet Git
+Projects + `git_project_upload`).
 
 ### `plan_line_action` — `cx.tower.plan.line.action` _(nest under `plan_line.action_ids`)_
 
@@ -139,7 +143,8 @@ the same model takes `secret_value` plus `server_id` / `partner_id` for scoped s
 `os_id`, `tag_ids`, `url`, `note`, `ssh_port`, `ssh_username`, `ssh_key_id`,
 `ssh_auth_mode`, `use_sudo`, `variable_value_ids`, `secret_ids`, `server_log_ids`,
 `shortcut_ids`, `scheduled_task_ids`, `plan_delete_id`, `file_ids`, `command_ids`,
-`plan_ids` With `cetmix_tower_git` also: `git_project_rel_ids`
+`plan_ids` With `cetmix_tower_git` also: `git_project_rel_ids` (**legacy** server-file
+link; new setups use Jet Git Projects + `git_project_upload`)
 
 - `ssh_password` is **not** importable.
 - `command_ids` / `plan_ids` / `shortcut_ids` / `scheduled_task_ids` always resolve to
@@ -249,6 +254,12 @@ The Git module's models have changed since the docs page was written. Verify aga
 | `git_repo`                                                    | `reference`, `url`, `is_private`, `secret_id`                              |
 | `git_repo_owner`                                              | `reference`, `display_name`, `name`, `secret_id`                           |
 | `git_project_rel` _(nest under `server.git_project_rel_ids`)_ | `reference`, `file_id`, `git_project_id`, `project_format`, `auto_sync`    |
+
+**Legacy**, kept only for servers that do not use Jets. `git_project_rel` is the
+server ↔ project ↔ file link. New setups link the Git Project to the Jet (Jet
+**Git Project** tab or the wizards) and write it to the host with `git_project_upload`.
+For code, use the repo-line methods in `cetmix-tower-api`. `project_format` stays in
+YAML and is hidden in the UI.
 
 Note the URL and privacy flag live on `git_repo`, not on `git_remote` — the
 documentation page still shows the old shape.

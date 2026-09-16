@@ -380,6 +380,54 @@ take recordsets. Over XML-RPC use the wizards in _XML-RPC gotchas_ below.
 `bring_to_state` takes a string and is RPC-callable; it still returns `None` (see
 that section).
 
+## Git repo lines
+
+A Jet's Git Project remotes are a flat list of dicts. Do not create sources and remotes
+by hand unless you need the nested Git Project form. Methods never return `None`
+(XML-RPC `allow_none=False`). Arguments are JSON-safe (ids, strings, lists, dicts).
+
+Each line:
+
+| Key | Required | Meaning |
+|---|---|---|
+| `remote_id` | no | Existing `cx.tower.git.remote` id. Only `set_repo_lines` uses it to update that record. Ignored by `add_repo_lines` and the wizards |
+| `repo_id` | at least one of the three `repo_*` keys | `cx.tower.git.repo` id |
+| `repo_reference` | | Repository reference (`get_by_reference`) |
+| `repo_url` | | URL; resolved or created |
+| `head_type` | yes | `branch`, `pr` or `commit` |
+| `head` | yes | Head |
+| `url_protocol` | no | `ssh`, `https` or `git`; default `https` |
+| `enabled` | no | Default `True` |
+| `source` | no | Output only. Returned by `get_repo_lines()`; ignored on input |
+
+Conflicting `repo_*` keys that resolve to different repositories raise
+`ValidationError`. Unknown keys and missing `head_type` / `head` do too; the message
+names the line index.
+
+| Model | Method | Returns |
+|---|---|---|
+| `cx.tower.git.project` | `get_repo_lines()` | `list` of dicts |
+| `cx.tower.git.project` | `add_repo_lines(lines)` | `True` |
+| `cx.tower.git.project` | `set_repo_lines(lines)` | `True` |
+| `cx.tower.jet` | `get_git_repo_lines()` | `list` (`[]` with no project) |
+| `cx.tower.jet` | `add_git_repo_lines(lines)` | `True` (creates a project named after the Jet if needed) |
+| `cx.tower.jet` | `set_git_repo_lines(lines)` | `True` (same) |
+
+`set_repo_lines` matching, applied in list order, each existing remote matched at most
+once: a line with `remote_id` updates that remote (the id must belong to this project);
+otherwise the first unmatched remote with the same repository, `head_type` and `head`
+is updated; unmatched lines create remotes; unmatched remotes are deleted. Empty
+sources are deleted. `get_repo_lines()` output is valid input, so
+`set_repo_lines(get_repo_lines())` is an exact round trip.
+
+`create_jet` / `clone` accept at most one of `git_project` (id or reference to link),
+`git_project_copy_from` (copy named after the new Jet), `git_repo_lines` (new project
+from lines). `clone()` with none of them copies the parent's project when it has one
+(the wizard default). Over XML-RPC use the wizards below instead of `create_jet`.
+
+Write the project to the host with a command whose `action` is `git_project_upload`
+(`path` + `git_file_name`). See `cetmix-tower-command-actions`.
+
 ## XML-RPC gotchas
 
 These are specific to driving Tower from outside Odoo. In-process Python (a Tower Python
@@ -392,14 +440,19 @@ as ints and `ensure_one()` fails. `jet_action.trigger(jet)` is the same. Drive t
 wizards instead — create them with integer ids, then call the action method on the
 wizard id:
 
-| Want                          | Model                               | Method                    |
-| ----------------------------- | ----------------------------------- | ------------------------- |
-| Install a template on servers | `cx.tower.jet.template.install.wiz` | `action_install_template` |
-| Create a Jet                  | `cx.tower.jet.create.wizard`        | `action_confirm`          |
-| Trigger a jet action          | `cx.tower.jet.action.wizard`        | `action_confirm`          |
-| Import YAML                   | `cx.tower.yaml.import.wiz`          | `action_import_yaml`      |
-| Run one SSH or Python command | `cx.tower.command.run.wizard`       | `run_command_in_wizard`   |
-| Run a flight plan             | `cx.tower.plan.run.wizard`          | `run_flight_plan`         |
+| Want                          | Model                               | Method                    | Git (`cetmix_tower_git`)                                                                                                                                                                                                 |
+| ----------------------------- | ----------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Install a template on servers | `cx.tower.jet.template.install.wiz` | `action_install_template` | —                                                                                                                                                                                                                        |
+| Create a Jet                  | `cx.tower.jet.create.wizard`        | `action_confirm`          | `add_repositories` (`no` / `existing` / `repos`); `git_project_id` when `existing`; `git_repo_line_ids` when `repos`                                                                                                     |
+| Clone a Jet                   | `cx.tower.jet.clone.wizard`         | `action_confirm`          | `git_project_mode` (`copy` / `keep` / `select` / `repos`); `git_project_id` when `select`; `git_repo_line_ids` when `repos`. If the parent Jet has no project, git fields are ignored                                    |
+| Trigger a jet action          | `cx.tower.jet.action.wizard`        | `action_confirm`          | —                                                                                                                                                                                                                        |
+| Import YAML                   | `cx.tower.yaml.import.wiz`          | `action_import_yaml`      | —                                                                                                                                                                                                                        |
+| Run one SSH or Python command | `cx.tower.command.run.wizard`       | `run_command_in_wizard`   | —                                                                                                                                                                                                                        |
+| Run a flight plan             | `cx.tower.plan.run.wizard`          | `run_flight_plan`         | —                                                                                                                                                                                                                        |
+
+`git_repo_line_ids` are `cx.tower.git.repo.line.wizard` records: `repo_id`,
+`url_protocol`, `head_type`, `head`, `enabled` (default `True`), `sequence`. Confirm
+serialises them with `repo_id` into the repo-line format above.
 
 `install_on_servers` is in-process only for the same reason.
 
