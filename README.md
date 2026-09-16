@@ -1,5 +1,7 @@
 # Cetmix Tower skills
 
+**This is a legacy version that covers Odoo 17.0 and before**
+
 Agent skills and Cursor rules for **creating [Cetmix Tower](https://tower.cetmix.com) entities** — flight plans,
 commands, jet templates, variables, secrets, file templates, servers, waypoints,
 scheduled tasks, webhooks — correctly, from a plain-language request such as _"create a
