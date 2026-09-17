@@ -419,7 +419,9 @@ Treat any Tower action method as possibly returning `None` — not a fixed list.
 and `file.action_push_to_server` have all done this: the work completed, then the
 client saw `"cannot marshal None"`. `action_push_to_server` is not even stable across
 modules — `cetmix_tower_server` returns a notification dict, `cetmix_tower_server_queue`
-overrides it, enqueues the upload (`with_delay`), and returns `None`. Check the record;
+overrides it and returns `None`. On the UI / auto-sync path that override
+enqueues the upload (`with_delay`); a `file_using_template` command transfer
+runs inside the command job. Check the record;
 do **not** retry. Use JSON-RPC, set
 `allow_none=True` on the proxy, or tolerate the fault.
 

@@ -229,8 +229,9 @@ See `cetmix-tower-waypoints` for the waypoint templates themselves.
 - `disconnect_file: true` unlinks the created file from its template afterwards, so
   later template edits no longer touch it.
 - Transfer failures return `FILE_UPLOAD_FAILED (-401)` / `FILE_DOWNLOAD_FAILED (-402)`.
-- Status `0` with _"File created and uploaded successfully"_ is not proof the file
-  is on the host — the queue module enqueues the upload. See `cetmix-tower-files`.
+- Status `0` with _"File created and uploaded successfully"_ is not proof the
+  rendered content is valid (`None` / `False` from empty variables). See
+  `cetmix-tower-files`.
 - **The plan run's `custom_values` are not applied.** `create_file()` renders from
   stored Jet / Template / Server / Global values only. Persist with
   `jet.set_variable_value` (or `server.set_variable_value`) before this line, or the

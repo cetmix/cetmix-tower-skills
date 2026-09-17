@@ -121,18 +121,10 @@ first.
 ### A successful push is not valid content
 
 A variable with no stored value renders as the literal text `None` or `False`. The
-command still returns success.
+command still returns success. Status `0` with _"File created and uploaded
+successfully"_ means the transfer ran, not that the rendered content is useful.
 
-Status `0` with _"File created and uploaded successfully"_ also does not prove the
-file is on the host. When `cetmix_tower_server_queue` is installed, `upload()` is
-enqueued (`with_delay`) and `file_using_template` logs success as soon as the job
-is queued — the next plan line can run before the file exists. That queued upload
-uses `raise_error=False`, so a later job failure does not fail the plan line
-either.
-
-After a push, read the host file. That check also catches a push that never landed.
-Do not put `chmod`, `stat` or `md5sum` of the just-pushed path on the immediately
-following plan line. Inspect it from a later line or a later plan.
+After a push, read the host file and confirm it has no literal `None` / `False`.
 
 ### A pushed file is not “the app applied the config”
 
@@ -208,7 +200,7 @@ binaries in YAML — fetch them on the host with a command instead.
 - [ ] Values the template must see are stored on the jet/server before the push (hard
       rule 17); `custom_values` alone is not enough
 - [ ] After the first run, the host file is read (exists, and no literal `None` /
-      `False`); do not `chmod` / `stat` it on the next plan line
+      `False`)
 - [ ] `source` and `file_type` correct for the direction of travel
 - [ ] `note` filled in, and used instead of a content header when the format rejects
       comments
