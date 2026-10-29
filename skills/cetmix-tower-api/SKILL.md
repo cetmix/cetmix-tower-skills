@@ -116,12 +116,13 @@ overwritten.
 | `(6, 0, [ids])`   | Replace the whole set       |
 
 Use `(0, 0, {...})` for children that have no owner-link field in YAML (`plan_line`,
-`plan_line_action`, `jet_action`, `variable_option`, `server_log`, `shortcut`,
-`scheduled_task`, `scheduled_task_cv`, `jet_template_dependency`, `git_source`,
-`git_remote`, `git_project_rel` — the full nest list in
-`cetmix-tower/references/hard-rules.md`). Alternatively create them standalone and set
-the inverse field (`plan_id`, `jet_template_id`, `server_id`, `template_id`, …), which
-YAML cannot do.
+`plan_line_action`, `jet_action`, `variable_option`, `server_log`,
+`scheduled_task_cv`, `jet_template_dependency`, `git_source`, `git_remote`,
+`git_project_rel` — the full nest list in `cetmix-tower/references/hard-rules.md`).
+`shortcut` and `scheduled_task` are their own records; link them from the owner's
+`shortcut_ids` or `scheduled_task_ids`. Alternatively create a nested child standalone
+and set the inverse field (`plan_id`, `jet_template_id`, `server_id`, `template_id`,
+…), which YAML cannot do.
 
 **Only the API can remove children.** The importer emits only `(0, 0, …)` and `(4, id)`,
 so a YAML re-import adds and updates but never removes — a plan re-imported with two
@@ -157,12 +158,10 @@ not an error. Passing `reference` explicitly is what makes the record findable l
 is not by itself protection against duplicates. **Upsert** (below) is.
 
 Child records get `<parent_reference>_<model>_<n>` (e.g. `deploy_redis_plan_line_1`)
-when the reference is omitted. That derived form is also what Tower **stores** for
-`plan_line`, `plan_line_action` and `variable_value` even when you named them in YAML —
-a parent write that includes `reference` regenerates those children. Authored names on
-those three models are cosmetic and cannot be used for upsert matching. `jet_action`,
-`jet_waypoint_template`, `server_log` and `variable_option` keep the name you wrote.
-Details: `cetmix-tower-yaml` → _Nested references_.
+when the reference is omitted. A reference you pass is kept. Changing the parent's
+`reference` renames its plan lines, line actions, variable values and server files;
+writing the same reference back does not. Details: `cetmix-tower-yaml` → _Nested
+references_.
 
 ## Contexts you must pass
 

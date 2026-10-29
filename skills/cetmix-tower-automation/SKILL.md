@@ -16,23 +16,25 @@ description:
 Runs a command or a flight plan on selected servers and jets on an interval. A system
 cron picks up due tasks; the form also has **Run Manually**.
 
-`scheduled_task` has no server or jet link in YAML, so it **must be nested** under
-`server.scheduled_task_ids`, `server_template.scheduled_task_ids` or
-`jet_template.scheduled_task_ids`.
+`scheduled_task` is its own record. The server, server template, or jet template lists
+it by reference in `scheduled_task_ids`. The task record does not carry the server or
+jet link.
 
 ```yaml
+- cetmix_tower_model: scheduled_task
+  reference: redis_nightly_snapshot
+  name: Nightly snapshot
+  sequence: 10
+  action: plan
+  plan_id: redis_snapshot_create
+  interval_number: 1
+  interval_type: days
+  next_call: 2027-01-01 02:00:00 # a real future datetime — a past one fires at once
 - cetmix_tower_model: jet_template
   reference: redis_jet
   name: Redis (Docker)
   scheduled_task_ids:
-    - reference: redis_nightly_snapshot
-      name: Nightly snapshot
-      sequence: 10
-      action: plan
-      plan_id: redis_snapshot_create
-      interval_number: 1
-      interval_type: days
-      next_call: 2027-01-01 02:00:00 # a real future datetime — a past one fires at once
+    - redis_nightly_snapshot
 ```
 
 | Field                       | Notes                                                                                                                                                                                              |
@@ -217,7 +219,8 @@ did.
 
 ## Review checklist
 
-- [ ] `scheduled_task` and `scheduled_task_cv` nested, never top-level
+- [ ] `scheduled_task` is its own record, listed by reference from `scheduled_task_ids`;
+      `scheduled_task_cv` stays nested under `custom_variable_value_ids`
 - [ ] `next_call` set explicitly to a **future** datetime (omitted or past ⇒ due at
       once)
 - [ ] `interval_type: dow` has at least one weekday `true`

@@ -106,10 +106,11 @@ _YAML-specific:_
       that model.
 - [ ] Child records that have no owner-link field are **nested**, not top-level
       (`plan_line`, `plan_line_action`, `jet_action`, `variable_option`, `server_log`,
-      `shortcut`, `scheduled_task`, `scheduled_task_cv`, `jet_template_dependency`,
-      `git_source`, `git_remote`, `git_project_rel`).
-- [ ] Flat records are ordered so that every reference is defined before it is used;
-      `key` records come first.
+      `scheduled_task_cv`, `jet_template_dependency`, `git_source`, `git_remote`,
+      `git_project_rel`). `shortcut` and `scheduled_task` are their own records.
+- [ ] Records a selected record uses come first. A later reference in the same file is
+      resolved after the main pass. A required link that is still unresolved fails.
+      Put `key` records first.
 - [ ] `_id` fields are scalars; `_ids` fields are lists.
 
 _Every path:_

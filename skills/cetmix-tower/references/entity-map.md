@@ -81,7 +81,7 @@ YAML. Field lists: `cetmix-tower-yaml/references/model-fields.md`.
 
 ---
 
-## Nesting rules (derived from `_get_fields_for_yaml`)
+## Nesting rules (from `yaml_export`)
 
 A child record can only be a **top-level** item in `records` if its own YAML field list
 contains the field that links it to its owner. Otherwise it _must_ be nested inside the
@@ -95,8 +95,8 @@ parent's x2m field, or it will be created orphaned.
 | `jet_action`              | **Must nest**       | `jet_template.action_ids`                                                                                                                              |
 | `jet_template_dependency` | **Must nest**       | `jet_template.template_requires_ids`                                                                                                                   |
 | `server_log`              | **Must nest**       | `server.server_log_ids` / `server_template.server_log_ids` / `jet_template.server_log_ids`                                                             |
-| `shortcut`                | **Must nest**       | `server.shortcut_ids` / `server_template.shortcut_ids`                                                                                                 |
-| `scheduled_task`          | **Must nest**       | `server.scheduled_task_ids` / `server_template.…` / `jet_template.…`                                                                                   |
+| `shortcut`                | Top-level           | Linked by reference from `server.shortcut_ids` / `server_template.shortcut_ids`                                                                        |
+| `scheduled_task`          | Top-level           | Linked by reference from `server.scheduled_task_ids` / `server_template.…` / `jet_template.…`                                                          |
 | `scheduled_task_cv`       | **Must nest**       | `scheduled_task.custom_variable_value_ids`                                                                                                             |
 | `git_source`              | **Must nest**       | `git_project.source_ids`                                                                                                                               |
 | `git_remote`              | **Must nest**       | `git_source.remote_ids`                                                                                                                                |

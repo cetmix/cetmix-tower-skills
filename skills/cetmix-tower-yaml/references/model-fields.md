@@ -1,28 +1,25 @@
 # Allowed YAML fields per model
 
 **This is the authoritative list.** Any key not listed for a model is silently dropped
-during import. It is generated from `_get_fields_for_yaml()` in the YAML modules:
+during import. A field is exported when it sets `yaml_export` in the YAML modules:
 
 - `cetmix_tower_yaml/models/*.py` — core models
 - `cetmix_tower_webhook/models/*.py` — `webhook`, `webhook_authenticator`
 - `cetmix_tower_git/models/*.py` — `git_*` models, plus extra fields on `plan_line`
 
 `reference` is available on every model and is required on top-level records.
+`explode` nests the child. `include` writes a reference and, when related records
+are included, adds that record to the file. `reference` writes a reference only.
 
-To regenerate after a Tower upgrade, grep the `_get_fields_for_yaml` methods across
-**all** modules — the optional ones add fields to core models too (`cetmix_tower_git`
-adds `git_project_rel_ids` to `server` and two fields to `plan_line`):
+To regenerate after a Tower upgrade, search `yaml_export` in those modules. Optional
+modules add fields to core models too (`cetmix_tower_git` adds
+`git_project_rel_ids` to `server` and two fields to `plan_line`):
 
 ```bash
-find <addons>/cetmix_tower_yaml/models <addons>/cetmix_tower_git/models <addons>/cetmix_tower_webhook/models -name '*.py' -exec awk '/def _get_fields_for_yaml/,/return/ {print FILENAME": "$0}' {} +
+rg -n "yaml_export" <addons>/cetmix_tower_yaml/models <addons>/cetmix_tower_git/models <addons>/cetmix_tower_webhook/models
 ```
 
-The `awk` range ends at the method's `return`, so it prints each list in full. Do not
-use `grep -A <n>`: the longest method is already 28 lines and a fixed window truncates
-silently as soon as a model gains fields.
-
-Do the same for `_get_force_x2m_resolve_models` — `cetmix_tower_git` extends that on
-`server` as well.
+Also read `_get_force_x2m_resolve_models` on the mixin, `server` and `server_template`.
 
 ---
 
@@ -39,6 +36,9 @@ Do the same for `_get_force_x2m_resolve_models` — `cetmix_tower_git` extends t
 - `variable_ids` is **computed from `code` and `path`**, `secret_ids` from `code` only —
   Tower fills both. Declare the `variable` and `key` records themselves instead.
 - `server_ids` is **not** importable: imported commands are available to all servers.
+- `jet_template_id`, `jet_action_id` and `waypoint_template_id` are written as
+  references only. Exporting a command does not add the jet template to the file;
+  include it yourself, or make sure it already exists on the target.
 
 ### `plan` — `cx.tower.plan`
 
@@ -57,7 +57,7 @@ Do the same for `_get_force_x2m_resolve_models` — `cetmix_tower_git` extends t
 `reference`, `sequence`, `condition`, `value_char`, `action`, `custom_exit_code`,
 `variable_value_ids`
 
-### `shortcut` — `cx.tower.shortcut` _(nest under `server`/`server_template`.`shortcut_ids`)_
+### `shortcut` — `cx.tower.shortcut` _(own record; listed by reference from `shortcut_ids`)_
 
 `reference`, `name`, `sequence`, `access_level`, `action`, `command_id`, `use_sudo`,
 `plan_id`, `note`
@@ -142,8 +142,9 @@ the same model takes `secret_value` plus `server_id` / `partner_id` for scoped s
 `plan_ids` With `cetmix_tower_git` also: `git_project_rel_ids`
 
 - `ssh_password` is **not** importable.
-- `command_ids` / `plan_ids` / `shortcut_ids` / `scheduled_task_ids` always resolve to
-  existing records where possible rather than duplicating.
+- `command_ids`, `plan_ids`, `shortcut_ids` and `scheduled_task_ids` are references to
+  their own records. Export lists those records separately. A nested full dict is still
+  resolved to the existing record where possible rather than duplicated.
 
 ### `server_template` — `cx.tower.server.template`
 
@@ -209,7 +210,7 @@ Has `jet_template_id`, so it may be top-level or nested under `waypoint_template
 
 ## Automation
 
-### `scheduled_task` — `cx.tower.scheduled.task` _(nest under a `scheduled_task_ids` field)_
+### `scheduled_task` — `cx.tower.scheduled.task` _(own record; listed by reference from `scheduled_task_ids`)_
 
 `reference`, `name`, `sequence`, `action`, `command_id`, `plan_id`, `interval_number`,
 `interval_type`, `next_call`, `last_call`, `monday`, `tuesday`, `wednesday`, `thursday`,

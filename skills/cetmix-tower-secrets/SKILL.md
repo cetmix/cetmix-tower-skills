@@ -42,13 +42,13 @@ One model, `cetmix_tower_model: key`, two types:
   note: Value for Redis 'requirepass'. Must be set manually after import.
 ```
 
-Put `key` records **first** in a flat file. `key` is **not** one of the
-deferred-resolution fields, and a forward reference does **not** raise: the importer
-logs a warning, skips the link, and the import **succeeds**. You get a server with an
-empty `ssh_key_id`, or a dropped secret link, and no error anywhere in the UI. Server
-import also runs with `skip_ssh_settings_check=True`, so even the "Please provide SSH
-Key" constraint stays silent. Order the records correctly — nothing will tell you if you
-did not.
+Put `key` records **first** in a flat file, as Tower's own export does. A reference to
+a `key` later in the same file is still resolved after the main pass. A reference to a
+`key` that is neither in the file nor in the database does **not** raise: the import
+**succeeds** with an empty `ssh_key_id` or a dropped secret link, and no error anywhere
+in the UI. Server import also runs with `skip_ssh_settings_check=True`, so even the
+"Please provide SSH Key" constraint stays silent. Check the reference — nothing will
+tell you if it is wrong.
 
 ## Using a secret
 

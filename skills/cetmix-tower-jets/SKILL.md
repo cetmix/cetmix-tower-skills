@@ -196,18 +196,18 @@ template_requires_ids:
 
 Tower resolves dependencies when a Jet is created, reusing or creating the required
 Jets. The required template must already exist in the database or be defined **somewhere
-in the same file**. `template_required_id` is one of the deferred fields, so a forward
-reference is queued and resolved after the main pass; only a reference that is still
-unresolvable at the end raises _"Deferred relation resolution failed"_, naming the
-record and field. Order your records properly anyway — do not lean on the deferred pass.
+in the same file**. A forward reference is resolved after the main pass; one that is
+still unresolvable raises _"Deferred relation resolution failed"_, naming the record and
+field. Order your records properly anyway — Tower's export writes required templates
+first.
 
-`template_requires_ids` **cannot be updated**. `cx.tower.jet.template.dependency.write`
-raises _"You cannot modify an existing template dependency!"_ if `template_id` or
-`template_required_id` is in the vals, even when the values are unchanged. A YAML
-`update` of the parent template that still carries this field always fails. Strip
-`template_requires_ids` from an update payload, or delete the dependency and create a
-new one. The importer's savepoint rolls the whole file back, so a failed attempt leaves
-nothing behind.
+A dependency row **cannot be edited**: `cx.tower.jet.template.dependency.write` raises
+_"You cannot modify an existing template dependency!"_ if `template_id` or
+`template_required_id` is in the vals. A YAML import does not write them: when the
+template already exists, each row in the file is matched by
+`(template_id, template_required_id)`. An existing pair is left unchanged, a new pair is
+added, and a row missing from the file stays. To change or drop a dependency, delete
+the row and create a new one over the API or in the UI.
 
 ## Atomized vs monolithic
 
@@ -297,8 +297,7 @@ the two-step idiom onto a template-scoped plan instead — see
       Prepare/Build/Start
 - [ ] `set_jet_url` (or equivalent) runs unconditionally; only DNS registration is
       provider-gated
-- [ ] `template_requires_ids` targets exist earlier in the file or in the database; the
-      field is stripped from later YAML updates
+- [ ] `template_requires_ids` targets exist earlier in the file or in the database
 - [ ] `note` on the template and on non-obvious actions
 - [ ] No `access_level` or `plan_*_id` lifecycle fields invented on `jet_template`
 - [ ] A Jet with empty `state_id` after a failed Prepare is recovered with

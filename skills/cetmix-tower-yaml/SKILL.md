@@ -133,27 +133,31 @@ Never wrap a `*_id` value in a list. Never give a `*_ids` field a scalar.
 ### Reference mode vs exploded mode
 
 - **Reference mode** (string, or a mapping whose only key is `reference`) links to a
-  record that already exists in the database _or_ was fully defined earlier in this
-  file. If neither is true the importer logs a warning and **skips the link** — no
-  error, so the omission is easy to miss.
+  record that already exists in the database _or_ is defined anywhere in this file. If
+  neither is true the importer **leaves the link empty** — no error, so the omission is
+  easy to miss.
 - **Exploded mode** (a mapping with `reference` plus other fields) creates the record if
   missing, or **updates** it if it exists.
 
 Consequence: exploding a record you did not intend to change will overwrite its fields.
 When you only want to link, use reference mode.
 
-Five models are always resolved to existing records rather than duplicated, even in
-"Create a new record" import mode: `variable`, `variable_option`, `tag`, `os`, `key`.
-That protects shared configuration from duplication. Records reached through a parent
-add more, so importing a server does not clone the plans and commands it points at:
+A full nested dict of a shared model is resolved to the existing record instead of
+copied: `variable`, `tag`, `os`, `key`. Records reached through a parent add more, so a
+nested dict on a server does not clone the plans and commands it points at:
 
-| Parent                                      | Adds                                                |
-| ------------------------------------------- | --------------------------------------------------- |
-| `server`                                    | `plan`, `shortcut`, `scheduled_task`, **`command`** |
-| `server_template`                           | `plan`, `shortcut`, `scheduled_task`                |
-| `server`, with `cetmix_tower_git` installed | also **`file`**                                     |
+| Parent            | Adds                                                |
+| ----------------- | --------------------------------------------------- |
+| `server`          | `plan`, `shortcut`, `scheduled_task`, **`command`** |
+| `server_template` | `plan`, `shortcut`, `scheduled_task`                |
 
 Note the asymmetry: `command` resolves under `server` but not under `server_template`.
+
+An exported file does not nest those records. Each one is its own record, and **Create
+a new record** copies only the selected records. The others are linked and not written.
+
+Owned children are never on that list: a copied variable gets its own options and a
+copied server its own files. The original keeps its own.
 
 ### Nested vs top-level
 
@@ -162,8 +166,12 @@ its owner. These must be **nested** (see `cetmix-tower/references/entity-map.md`
 whole table):
 
 `plan_line`, `plan_line_action`, `variable_option`, `jet_action`,
-`jet_template_dependency`, `server_log`, `shortcut`, `scheduled_task`,
-`scheduled_task_cv`, `git_source`, `git_remote`, `git_project_rel`.
+`jet_template_dependency`, `server_log`, `scheduled_task_cv`, `git_source`,
+`git_remote`, `git_project_rel`.
+
+`shortcut` and `scheduled_task` are their own records. The server, server template, or
+jet template lists them by reference in `shortcut_ids` or `scheduled_task_ids`. Export
+does not nest them. A custom value stays nested under `custom_variable_value_ids`.
 
 Special case: **a top-level `variable_value` is a global value**, because
 `server_id`/`jet_template_id` etc. are not importable fields. Nest it under a parent's
@@ -172,56 +180,42 @@ Special case: **a top-level `variable_value` is a global value**, because
 `cetmix_tower_model` inside a nested record is optional — real Tower exports omit it and
 the importer discards it if present. Match the export style: omit it in nested records.
 
-### Nested references: preserved vs discarded
+### Nested references
 
-The importer matches existing records by the **stored** `reference`. Four nested models
-keep the name you wrote. Three overwrite it with a derived one, so a re-import in
-`update` mode cannot find them and treats every child as new. The API page that says
-references are auto-generated "if omitted" is true of create; it does not mean an
-authored nested name is honoured on the next write of the parent.
+The importer matches existing records by the **stored** `reference`. Every nested model
+stores the reference you wrote (a suffix is added only when it is already taken), so a
+re-import in `update` mode finds the same children again.
 
-| Nested model              | Authored `reference` | Stored as                               | Re-import match       |
-| ------------------------- | -------------------- | --------------------------------------- | --------------------- |
-| `jet_action`              | preserved            | what you wrote                          | yes                   |
-| `jet_waypoint_template`   | preserved            | what you wrote                          | yes                   |
-| `server_log`              | preserved            | what you wrote                          | yes                   |
-| `variable_option`         | preserved            | what you wrote                          | yes                   |
-| `jet_template_dependency` | preserved            | what you wrote                          | yes, then write fails |
-| `plan_line`               | discarded            | `<plan>_plan_line_<n>`                  | no                    |
-| `plan_line_action`        | discarded            | `<line>_plan_line_action_<n>`           | no                    |
-| `variable_value`          | discarded            | `<var>_variable_value_<scope>_<parent>` | no                    |
+Tower derives a reference only when you omit it: `<plan>_plan_line_<n>`,
+`<line>_plan_line_action_<n>`, `<var>_variable_value_<scope>_<parent>`. It renames a
+parent's dependent children (`_get_dependent_model_relation_fields`: plan lines, line
+actions, variable values, server files) only when the parent's `reference` actually
+**changes**. Writing the same reference back, as YAML `update` does, leaves them alone.
 
-For the three discarding models the authored `reference` is cosmetic — useful in the
-file, useless for matching. A parent write that includes `reference` (YAML `update`
-always does) regenerates those children from `_get_dependent_model_relation_fields`
-(`plan.line_ids`, `plan_line.action_ids`, `variable.value_ids`). What happens next
-depends on constraints — see _Common errors_ and _`update` is additive_.
-
-`jet_template_dependency` keeps the name, then the write of `template_required_id` fails
-anyway; see `You cannot modify an existing template dependency`.
+When the jet template already exists, a dependency row is matched by
+`(template_id, template_required_id)`, not by reference. A matching row is left
+unchanged. A pair that is not already there is created. The row itself still cannot
+be edited.
 
 ## Record ordering
 
-Two ways to organise a file:
+Tower export writes one top-level record per standalone entity. Records it uses come
+first. The records the user selected have `cetmix_tower_root: true` immediately after
+`cetmix_tower_model`. Owned children stay nested. A cycle is written once; the repeat
+is a reference.
 
-- **Nested (single root).** One top-level record with everything inline. This is what
-  Tower exports for a jet template or server template. Order does not matter.
-- **Flat.** One list item per record. **Each record must appear before anything that
-  references it.** In particular:
-  - `key` records first. A forward-referenced `key` does **not** raise — the importer
-    logs a warning, skips the link, and the import succeeds with an empty `ssh_key_id`
-    or a dropped secret link. This is the _silently missing link_ failure mode below.
-  - `jet_template` records referenced through `template_requires_ids` must already exist
-    or be defined earlier (this one _is_ deferred — see below).
+With **Include Related Records** off, the file contains only the selected records.
+`include` links are references. Nested children are still written.
 
-A few forward references are handled by a deferred second pass:
-`command.jet_template_id`, `command.jet_action_id`, `command.waypoint_template_id`,
-`jet_waypoint_template.jet_template_id`, `plan.line_ids[].command_id`,
-`jet_template.template_requires_ids[].template_required_id`, and
-`scheduled_task.custom_variable_value_ids[].variable_value_id`. If a deferred reference
-still cannot be resolved after the main pass, the import raises _"Deferred relation
-resolution failed"_ naming the record and field. Do not rely on this — order your
-records properly.
+A reference to a record later in the same file is resolved after the main pass, from
+this file first, then from the database. That is any such reference, not a fixed list
+of fields. A required link that is still unresolved fails before that record is saved,
+with _"Deferred relation resolution failed"_. A reference that is neither in the file
+nor in the database is left empty (many2one) or dropped (a list link), without an
+error.
+
+Author files in that same order, `key` records first. Do not rely on the second pass
+for a required link.
 
 ## Omit defaults
 
@@ -251,13 +245,13 @@ not imitate it when authoring.
 2. The wizard shows the manifest, a code preview, the list of secrets found in the file,
    and **If Record Exists**:
 
-   | Option                   | Behaviour                                                                         |
-   | ------------------------ | --------------------------------------------------------------------------------- |
-   | `Skip record` (default)  | Leave the existing record untouched                                               |
-   | `Update existing record` | Overwrite it with the YAML values                                                 |
-   | `Create a new record`    | Create a duplicate with a new reference (except the always-resolved models above) |
+   | Option                   | Behaviour                                                                                                                                                          |
+   | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+   | `Skip record` (default)  | Leave an existing record unchanged. Create a record that is not in the database.                                                                                  |
+   | `Update existing record` | Write the file's values onto the existing record. Create a record that is missing.                                                                                |
+   | `Create a new record`    | Copy a selected record (`cetmix_tower_root`, or every top-level record when the file has no marker). Keep its reference when free; otherwise add a suffix. Any other existing record is left unchanged. Create a record that is missing. |
 
-   The choice applies to the whole file.
+   The choice applies to the whole file. Create treats selected records differently from the others.
 
 3. **Import**. Field-level failures (bad selection key, constraint violation) appear
    here. The whole import runs in a savepoint, so a failure leaves nothing behind.
@@ -266,13 +260,16 @@ not imitate it when authoring.
 
 ### Do not import onto an instance that already has the templates
 
-If the live database already has the same logical templates or commands (created via
-the API, possibly with different plan/command references), **do not import this file
-onto that instance** (hard rule 14). `Skip record` leaves the live records untouched
-and creates unused duplicate plans for every new nested reference. `Update existing
-record` duplicates `plan_line`s and cannot rewrite `template_requires_ids`. Edit the
-existing records over the API. Keep the YAML as a portable copy for empty databases
-and other instances. Writing a YAML file does not mean the live instance matches it.
+If the live database already has the same logical templates or commands under
+different references, **do not import this file onto that instance** (hard rule 14).
+Records are matched by reference, so a different reference is a new record.
+
+When the references match, `Skip record` leaves the existing record unchanged and
+creates only what is missing. `Update existing record` writes the matched records and
+their nested children. An existing jet template dependency is left as it is; a new
+required template is added. Edit live records over the API when the
+instance was not created from this file. Keep the YAML as a portable copy for empty
+databases and other instances.
 
 ### `update` is additive, not a sync
 
@@ -282,27 +279,27 @@ The importer only ever emits "create" and "link" operations on x2m fields — ne
 - updates matched records in place (by **stored** `reference`),
 - creates records that are new,
 - **leaves behind children you removed from the file**,
-- and **duplicates children whose authored `reference` does not match what is stored**
-  (`plan_line`, `plan_line_action`). Nothing surfaces this: a 12-line Prepare plan
-  becomes 24 and would run every step twice.
+- and creates a second child when the file's `reference` for it differs from the stored
+  one — for example a child created in the UI before the file existed.
 
-Delete two lines from a plan's `line_ids`, re-import, and the plan still has them. Keep
-the twelve lines and re-import, and you may get twenty-four. The same additive behaviour
-applies to `action_ids`, `option_ids`, `tag_ids`, `server_log_ids` — every x2m field.
+Delete two lines from a plan's `line_ids`, re-import, and the plan still has them. The
+same additive behaviour applies to `action_ids`, `option_ids`, `tag_ids`,
+`server_log_ids` — every x2m field.
 
 YAML is therefore idempotent for additions and field changes on records whose
-`reference` is stable, **not for removals**, and **not for the three discarding nested
-models** above. `variable_value` hits a unique constraint and aborts (safe, because of
-the savepoint). `plan_line` / `plan_line_action` have no such constraint.
+`reference` matches the stored one, **not for removals**. A mismatched nested
+`variable_value` hits its unique constraint and aborts (safe, because of the
+savepoint); a mismatched `plan_line` / `plan_line_action` has no such constraint and is
+added again.
 
 To converge on an exact set, use the API (`(5, 0, 0)` then `(0, 0, vals)`, or
-`(6, 0, [ids])` / `(2, id)`) or delete in the UI. A whole-template re-import in `update`
-mode is not a viable way to refresh an already-imported Jet Template — see
+`(6, 0, [ids])` / `(2, id)`) or delete in the UI. See
 `cetmix-tower-api/references/yaml-vs-api.md`. If a deployment must be reproducible from
 scratch, import into a clean database rather than trusting repeated updates.
 
-After any re-import, compare every command `code` body and every plan's line count
-against the source file. That is what catches silent duplication.
+After any re-import onto records that were not created from this file, compare every
+plan's line count against the source file. That is what catches a mismatched
+reference.
 
 Round-trip: build in the UI, then export from the record's **YAML** tab (needs the
 _Cetmix Tower YAML > Export_ right) and commit the file. The YAML tab is also writable
@@ -341,9 +338,8 @@ order.
 | `Invalid YAML file`                                                                                           | Syntax error — usually indentation, or an unquoted `{{ ... }}` at the start of a value                                                                                                                                                                                                      |
 | `Deferred relation resolution failed`                                                                         | A forward reference never resolved                                                                                                                                                                                                                                                          |
 | `YAML version is higher than…`                                                                                | `cetmix_tower_yaml_version` too high                                                                                                                                                                                                                                                        |
-| `duplicate key value violates unique constraint "cx_tower_variable_value_unique_variable_value_jet_template"` | Nested `variable_value` re-import: the authored `reference` never matches, so the importer creates a second value and unique `(variable_id, jet_template_id)` aborts. The savepoint rolls the whole file back — retrying is safe.                                                           |
-| `You cannot modify an existing template dependency! Please remove it and create a new one.`                   | Any `update` of a `jet_template` that still carries `template_requires_ids`. The model rejects writes of `template_id` / `template_required_id` even when the values are unchanged. Strip `template_requires_ids` from the payload, or delete the dependency first. Also savepoint-wrapped. |
-| _silent plan-line duplication_                                                                                | Same discarded-reference cause as the unique-constraint error, but `plan_line` / `plan_line_action` have no unique constraint, so lines are created again with no error. Compare line counts after every re-import.                                                                         |
+| `duplicate key value violates unique constraint "cx_tower_variable_value_unique_variable_value_jet_template"` | Nested `variable_value` re-import where the file's `reference` differs from the stored one (the value was created outside this file), so the importer creates a second value and unique `(variable_id, jet_template_id)` aborts. The savepoint rolls the whole file back — retrying is safe. |
+| _silent plan-line duplication_                                                                                | Same mismatched-reference cause, but `plan_line` / `plan_line_action` have no unique constraint, so the line is created again with no error. Compare line counts after re-importing onto records not created from this file.                                                                  |
 | _silently missing field_                                                                                      | Field not in that model's YAML field list                                                                                                                                                                                                                                                   |
 | _silently missing link_                                                                                       | Reference mode pointing at something that does not exist yet                                                                                                                                                                                                                                |
 
