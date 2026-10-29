@@ -73,7 +73,7 @@ pointless and detached lines are orphans.
 
 | Field          | Notes                                                                                                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `reference`    | Cosmetic on `plan_line` / `plan_line_action`. Tower stores a derived name; a YAML re-import cannot match it and will duplicate lines. See `cetmix-tower-yaml` → _Nested references_. |
+| `reference`    | Optional on `plan_line` / `plan_line_action`. Tower keeps the one you write, so a YAML `update` re-import matches the line. Omit it and Tower derives one. See `cetmix-tower-yaml` → _Nested references_. |
 | `sequence`     | Execution order, ascending. Leave gaps (10, 20, 30) so lines can be inserted later.                                                                                                  |
 | `command_id`   | The command. **`command_id`, never `command`.**                                                                                                                                      |
 | `condition`    | Python expression; the line runs only if it is truthy. Blank = always.                                                                                                               |

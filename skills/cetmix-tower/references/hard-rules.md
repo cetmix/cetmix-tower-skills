@@ -59,9 +59,10 @@ current skill.
 9. **`_id` is a scalar, `_ids` is a list.** Never a list under `_id`, never a scalar
    under `_ids`.
 10. **Nest children that have no owner-link field** — never top-level: `plan_line`,
-    `plan_line_action`, `jet_action`, `variable_option`, `server_log`, `shortcut`,
-    `scheduled_task`, `scheduled_task_cv`, `jet_template_dependency`, `git_source`,
-    `git_remote`, `git_project_rel`.
+    `plan_line_action`, `jet_action`, `variable_option`, `server_log`,
+    `scheduled_task_cv`, `jet_template_dependency`, `git_source`, `git_remote`,
+    `git_project_rel`. `shortcut` and `scheduled_task` are their own records; the
+    owner lists them by reference.
 11. **Jet lifecycle:** every `jet_action` needs `state_transit_id`; exactly one action
     with no `state_from_id` (create) and exactly one with no `state_to_id` (destroy);
     Build and Start must use **different** plans. Reuse the eleven shipped `jet_state`
@@ -77,11 +78,13 @@ current skill.
     `manifest` and `records`. For API work read `cetmix-tower-api` — real model names,
     `access_level` as `"1"`/`"2"`/`"3"`, command tuples, the `from_yaml` and
     `skip_ssh_settings_check` contexts, upsert by reference. If the target instance
-    already has the same logical templates or commands (created via the API, possibly
-    under different references), **do not import that YAML onto that instance.** Skip
-    creates unused duplicate plans; update duplicates `plan_line`s and cannot rewrite
-    `template_requires_ids`. Edit the existing records over the API. Keep the YAML as a
-    portable copy for empty databases and other instances.
+    already has the same logical templates or commands under different references,
+    **do not import that YAML onto that instance.** Records are matched by reference,
+    so a different reference is a new record. When the references match, Skip leaves
+    the existing record unchanged and creates only what is missing. Update writes the
+    matched records and their nested children. An existing jet template dependency is
+    left unchanged. Edit the existing records over the API. Keep the YAML as a portable
+    copy for empty databases and other instances.
 15. **There is no REST API module in Cetmix Tower.** `cetmix_tower_api` is an
     unimplemented specification; never reference its endpoints.
 16. **Count dependents before editing a command, plan, or file template.**
@@ -130,9 +133,10 @@ jet=...)` with no `variable_values`, so the file renders from stored Jet →
 Never answer from memory, a forum or a blog:
 
 1. **Cetmix Tower source code** — `cetmix_tower_server/models/*.py` for fields,
-   selections and constraints; `cetmix_tower_yaml/models/*.py` (`_get_fields_for_yaml`)
-   for the exact importable field list per model. Optional modules extend both — check
-   `cetmix_tower_git/models/` and `cetmix_tower_webhook/models/` too.
+   selections and constraints; `yaml_export` on each field in
+   `cetmix_tower_yaml/models/*.py` for the exact importable field list per model.
+   Optional modules extend both — check `cetmix_tower_git/models/` and
+   `cetmix_tower_webhook/models/` too.
 2. **Official documentation** — the `cetmix-tower-doc` mkdocs tree (external to this
    repo): `mkdocs/docs/developer-guidelines/yaml_format_specification.md` and
    `mkdocs/docs/reference/**`.

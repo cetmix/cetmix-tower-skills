@@ -176,8 +176,8 @@ break.
 
 **Do not import a YAML file onto an instance that already has the same logical
 templates** (created via the API, possibly under different command/plan references).
-Skip creates unused duplicate plans; update duplicates `plan_line`s and cannot rewrite
-`template_requires_ids`. Edit the existing records over the API (path C). Keep the YAML
+Records are matched by reference, so Skip and Update both create a second copy of
+every template, plan and command whose reference differs. Edit the existing records over the API (path C). Keep the YAML
 as a portable copy for empty databases and other instances (hard rule 14).
 
 Note: the _YAML tab_ on a record is an inverse field, so a user or an API caller with

@@ -20,8 +20,7 @@ Applies to: `command`, `plan`, `variable`, `variable_option`, `variable_value`,
 `jet_state`, `jet_action`, `jet_waypoint_template`, `shortcut`.
 
 Not importable on `jet_template` or `server_log`: both have the field on the model, but
-neither lists it in `_get_fields_for_yaml`, so a value is validated and then silently
-dropped.
+neither sets `yaml_export` on it, so a value is validated and then silently dropped.
 
 ---
 
