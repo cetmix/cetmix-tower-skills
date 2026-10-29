@@ -40,7 +40,8 @@ provider API — but importable for bootstrapping.
 | `os_id`                                                                                    | Used to warn when a command is run on an OS it was not written for                                                                                                                                |
 | `plan_delete_id`                                                                           | Plan run **before** the server is deleted                                                                                                                                                         |
 | `url`                                                                                      | Web interface URL; feeds `tower.server.hostname` / `netloc` / `port`                                                                                                                              |
-| `variable_value_ids`, `secret_ids`, `server_log_ids`, `shortcut_ids`, `scheduled_task_ids` | Nested children                                                                                                                                                                                   |
+| `variable_value_ids`, `secret_ids`, `server_log_ids`                                          | Nested children                                                                                                                                                                                   |
+| `shortcut_ids`, `scheduled_task_ids`                                                       | References to their own records                                                                                                                                                                   |
 
 **`ssh_password` is not importable.** A server imported with `ssh_auth_mode: p` needs
 its password entered in the UI. Prefer key authentication.
@@ -136,17 +137,23 @@ Valid parents: `server`, `server_template`, `jet_template`.
 
 ## Shortcut
 
-A one-click button on the server form. Must be nested under `shortcut_ids`.
+A one-click button on the server form. It is its own record. The server lists it by
+reference in `shortcut_ids`.
 
 ```yaml
-shortcut_ids:
-  - reference: deploy_app_shortcut
-    name: Deploy application
-    sequence: 10
-    access_level: user
-    action: plan
-    plan_id: deploy_app
-    note: Full application deploy. Takes about two minutes.
+- cetmix_tower_model: shortcut
+  reference: deploy_app_shortcut
+  name: Deploy application
+  sequence: 10
+  access_level: user
+  action: plan
+  plan_id: deploy_app
+  note: Full application deploy. Takes about two minutes.
+- cetmix_tower_model: server
+  reference: app_server
+  name: App
+  shortcut_ids:
+    - deploy_app_shortcut
 ```
 
 | Field          | Notes                                                                         |
@@ -188,12 +195,14 @@ the run wizard but never blocks. Never rely on it for correctness; branch on
 `color` is 0–10. Tags are shared across all entity types. Tag by technology and by role:
 a plan that starts a Dockerised Jet gets `Jets` and `Docker`.
 
-Tags, OSes, variables, variable options and keys are always resolved to existing records
-rather than duplicated, even in "Create a new record" import mode. Referencing an
-existing tag by reference is safe. Under a `server` the same protection covers `plan`,
-`shortcut`, `scheduled_task` and `command` (plus `file` with `cetmix_tower_git`); under
-a `server_template` it covers `plan`, `shortcut` and `scheduled_task` — **not**
-`command`.
+A nested full dict of a tag, OS, variable, variable option or key is resolved to the
+existing record rather than copied. Referencing an existing tag by reference is safe.
+The same applies to a nested dict of `plan`, `shortcut`, `scheduled_task` and
+`command` under a `server` (plus `file` with `cetmix_tower_git`), and of `plan`,
+`shortcut` and `scheduled_task` under a `server_template` — **not** `command`.
+
+An exported file lists those records on their own. **Create a new record** copies only
+the records that were selected. The others are linked and not written.
 
 ## Access levels in short
 
@@ -208,7 +217,8 @@ is. Tell the user which roles to set after import.
 
 ## Review checklist
 
-- [ ] `server_log`, `shortcut` and `scheduled_task` nested, never top-level
+- [ ] `server_log` nested; `shortcut` and `scheduled_task` are their own records, listed
+      by reference
 - [ ] `ssh_key_id` set when `ssh_auth_mode: k`; the `key` record has `key_type: k`
 - [ ] `skip_host_key` left `false`
 - [ ] Password-auth servers flagged to the user (no YAML path for the password)

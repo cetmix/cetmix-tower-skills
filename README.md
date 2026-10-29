@@ -223,11 +223,12 @@ they go stale when Tower changes. After a Tower upgrade, regenerate them from a
 Cetmix Tower checkout:
 
 ```bash
-find cetmix_tower_yaml/models cetmix_tower_git/models cetmix_tower_webhook/models -name '*.py' -exec awk '/def _get_fields_for_yaml/,/return/ {print FILENAME": "$0}' {} +
+rg -n "yaml_export" cetmix_tower_yaml/models cetmix_tower_git/models cetmix_tower_webhook/models
 ```
 
-(The `awk` range stops at each method's `return`, so nothing is truncated when a model
-gains fields — unlike a fixed `grep -A <n>` window.)
+`yaml_export` on a field is what export and import use. `explode` nests the child.
+`include` writes a reference and, when related records are included, adds that
+record to the file. `reference` writes a reference only.
 
 and update:
 
