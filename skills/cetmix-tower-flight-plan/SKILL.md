@@ -267,10 +267,11 @@ template variants). Actions that do **different** things must not — see
 ## Commands that only work inside a plan
 
 The ad-hoc **Run Command** wizard offers only `ssh_command` and `python_code`.
-`file_using_template`, `plan`, `jet_action` and `create_waypoint` have no ad-hoc run
-path at all — each needs a plan around it, even a single-line one. A `shortcut` or
-`scheduled_task` that should trigger one must use `action: plan` pointing at that
-wrapper, not `action: command`. See `cetmix-tower-command-actions`.
+`file_using_template`, `plan`, `jet_action`, `create_waypoint` and
+`git_project_upload` have no ad-hoc run path at all — each needs a plan around it,
+even a single-line one. A `shortcut` or `scheduled_task` that should trigger one must
+use `action: plan` pointing at that wrapper, not `action: command`. See
+`cetmix-tower-command-actions`.
 
 ## Review checklist
 
