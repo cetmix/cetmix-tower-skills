@@ -95,7 +95,8 @@ Also read `_get_force_x2m_resolve_models` on the mixin, `server` and `server_tem
 
 **Values are never importable or exportable via YAML.** Set them in the UI, or over the
 API — `secret_value` is a vault-backed field that `create`/`write` accept (reads return
-`*****`).
+`*****`). `public_key` (filled when Tower generates an SSH key) is not exported either;
+do not add it to YAML — import drops it silently.
 
 ### `key_value` — `cx.tower.key.value`
 

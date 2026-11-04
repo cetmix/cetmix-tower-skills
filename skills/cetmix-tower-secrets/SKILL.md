@@ -1,7 +1,7 @@
 ---
 name: cetmix-tower-secrets
 description: Handle sensitive data in Cetmix Tower — key records of type Secret and SSH
-  Key, the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
+  Key, generating an SSH key pair in Tower, the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
 ---
 
 # Secrets and SSH keys
@@ -11,7 +11,7 @@ One model, `cetmix_tower_model: key`, two types:
 | `key_type` | Purpose                                                                                  |
 | ---------- | ---------------------------------------------------------------------------------------- |
 | `s`        | **Secret** — a token, password or any sensitive string used inline in commands and files |
-| `k`        | **SSH Key** — a private key selectable in server settings                                |
+| `k`        | **SSH Key** — a private key selectable in server settings; Tower can generate it         |
 
 ## Non-negotiable rules
 
@@ -105,11 +105,41 @@ without changing a single command.
   reference: production_ssh_key
   key_type: k
   name: Production SSH Key
-  note: Deploy key for production hosts. Private key must be pasted in the UI.
+  note: Deploy key for production hosts. Generate it on the key form after import.
 ```
 
 Referenced from `server.ssh_key_id` / `server_template.ssh_key_id`, used when
 `ssh_auth_mode: k`. The key value is write-only and inaccessible after saving.
+
+### Generating the key pair — no `ssh-keygen`
+
+Tower creates the pair itself. Do not tell the user to run `ssh-keygen` and paste the
+private key; tell them to open the saved SSH Key record and click **Generate**
+(**Regenerate** when a private key is already stored — it asks for confirmation, and
+the old private key is gone for good).
+
+| Key type            | Algorithm                       |
+| ------------------- | ------------------------------- |
+| `ed25519` (default) | Ed25519                         |
+| `ecdsa`             | ECDSA, curve nistp256 (256 bit) |
+| `rsa`               | RSA, 4096 bit                   |
+
+No other sizes, curves or DSA. The private key is stored in the vault in OpenSSH format
+**without a passphrase**. The **Public Key** field (`public_key`, read-only, Managers
+only) then shows one line, `<algorithm> <base64>`, with a copy button. That line goes
+into `~/.ssh/authorized_keys` on the host. Getting it there is the user's step or a
+Tower command's — never an SSH session of your own.
+
+- `public_key` is **not a secret** and **not in YAML** — it exists only after
+  generation, in the database.
+- Writing the private key by hand (UI or API) **clears** `public_key`. An empty Public
+  Key therefore means "entered manually or never generated", not "no key".
+- Generating needs **write** access to the key: a Manager in the key's Managers or in
+  the Managers of a Server that uses it, or Root. A Manager who can only read the key
+  gets an access error before anything is generated.
+- Generating over the API: `cetmix-tower-api/SKILL.md`.
+- No **Generate** button on the form means the installed Tower predates this feature —
+  fall back to a key the user creates and pastes.
 
 `server.ssh_password` is not importable either — no YAML path exists for it.
 
