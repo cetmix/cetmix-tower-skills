@@ -4,15 +4,21 @@ description:
   Manage remote files with Cetmix Tower — file_template and file records, tower vs
   server source, text vs binary, server_dir and file_name with variables, rendering
   content with variables and secrets, the file_using_template command action with
-  if_file_exists and disconnect_file, auto sync, and using files as server logs. Use
-  whenever a configuration file, script or log has to be pushed to or fetched from a
-  host.
+  if_file_exists and disconnect_file, auto sync, and using files as server logs. Prefer
+  process env over a host file (hard rule 18); use a file template only when env cannot
+  express the format. Use whenever a configuration file, script or log has to be pushed
+  to or fetched from a host.
 ---
 
 # Files and file templates
 
-Never write a long config file inside command code. Put it in a **File Template** and
-push it with a command.
+Prefer process environment over a host file (hard rule 18). Use a **file template** only
+when the process cannot take env — nginx.conf, TLS material, Redis `redis.conf`. Never
+write secrets into `--env-file` or a rendered `.env` on disk; pass them as
+`docker create --env KEY='#!cxtower.secret.X!#'` instead.
+
+When a file is required, never write a long config inside command code. Put it in a
+**File Template** and push it with a command.
 
 | Model           | Role                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -133,9 +139,10 @@ database, and Restart does not always re-read the file. If the process only appl
 setting on first init (empty DB, first start), Start / Restart / Rebuild must include a
 command that applies it.
 
-`--env-file` on `docker create` is read at **create** time. Changing that file later
-does nothing until Rebuild runs `docker create` again. Restart is not enough. See
-`cetmix-tower-command-ssh`.
+`--env` on `docker create` is applied at **create** time. Changing those flags later
+does nothing until Rebuild runs `docker create` again. Restart is not enough. Do not
+use `--env-file` as a substitute — that is a host-side copy of the config (hard
+rule 18). See `cetmix-tower-command-ssh`.
 
 ## Fetching a file
 
@@ -160,18 +167,20 @@ use is logs:
 Wire a file into a `server_log` so it shows up in the Server or Jet form:
 
 ```yaml
-- cetmix_tower_model: server_template
-  reference: app_server_template
-  name: App Server
+- cetmix_tower_model: jet_template
+  reference: app_jet
+  name: App
   server_log_ids:
-    - reference: app_server_log_file
+    - reference: app_jet_file_log
       name: Application log
       log_type: file
       file_template_id: app_log
 ```
 
-On a **server template** use `file_template_id` (files are created per server); on an
-existing **server** use `file_id`. See `cetmix-tower-servers`.
+On a **jet template** or **server template** use `file_template_id` (a file is created
+per Jet or server); on an existing **server** or **jet** use `file_id`. Jet-template
+logs are copied onto each Jet at create — put them on the template (hard rule 20). See
+`cetmix-tower-jets` and `cetmix-tower-servers`.
 
 ## Auto sync
 
@@ -188,6 +197,9 @@ binaries in YAML — fetch them on the host with a command instead.
 
 ## Review checklist
 
+- [ ] Env was considered first (hard rule 18); a file template is used only because
+      the process cannot take env
+- [ ] No secrets in `--env-file` or a rendered `.env`
 - [ ] Long content lives in a `file_template`, not in command `code`
 - [ ] `server_dir` quoted when it starts with `{`
 - [ ] A preceding command creates `server_dir` with `mkdir -p`
@@ -202,5 +214,7 @@ binaries in YAML — fetch them on the host with a command instead.
 - [ ] After the first run, the host file is read (exists, and no literal `None` /
       `False`)
 - [ ] `source` and `file_type` correct for the direction of travel
+- [ ] A `source: server` template used as a Jet log is nested on the **jet template**,
+      not only on a server (hard rule 20)
 - [ ] `note` filled in, and used instead of a content header when the format rejects
       comments

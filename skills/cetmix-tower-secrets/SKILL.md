@@ -1,7 +1,7 @@
 ---
 name: cetmix-tower-secrets
 description: Handle sensitive data in Cetmix Tower — key records of type Secret and SSH
-  Key, the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
+  Key, the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, preferring process env over a host file (hard rule 18), and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
 ---
 
 # Secrets and SSH keys
@@ -123,28 +123,38 @@ importable — set them in the UI.
 
 Masking covers Tower's previews and logs, not the target system:
 
-- A secret in **argv** (`-a`, `--password`, `-e VAR=`) is readable via host `ps`,
-  `docker inspect` and `docker ps --no-trunc`. See the next section — do not put one
-  there at all.
-- A secret written into a file on the host lives there in plaintext. Set restrictive
-  permissions in a following command and consider `keep_when_deleted: false`.
+- A secret in **container env** (`docker create --env KEY=…`) is readable via
+  `docker inspect` and, briefly, host `ps` while `docker create` runs. That is still
+  better than a file on disk (hard rule 18).
+- A secret written into a **host file** lives there in plaintext until someone deletes
+  it. Do not use `--env-file` or a rendered `.env` for secrets.
 - A secret sent to a third-party API is on the wire. Use HTTPS and a `timeout`.
 
 Mention these where relevant rather than implying secrets are safe everywhere.
 
-## Substitution is verbatim — never a shell argument
+## Prefer environment variables over files
 
-`#!cxtower.secret.X!#` is a literal text replacement with **no shell escaping**. A value
-containing a quote, space, `$` or backtick breaks whatever quoting you wrapped around
-it. The failure looks like an **authentication error** (`WRONGPASS`, `401`), not a
-syntax error — you will debug the password before the quoting.
+Hard rule 18: if the process can take configuration as env, pass it as env.
 
-Render the secret into a **file template**. A config file has no shell parsing, so any
-byte is safe; have the process read that file. The worked example's `requirepass` line
-in `redis.conf` is the pattern.
+```bash
+docker create \
+  --env DRONE_TOWER_BASE_URL={{ drone_tower_base_url }} \
+  --env DRONE_API_KEY='#!cxtower.secret.drone_api_key!#' \
+  {{ jet_image_name }}
+```
 
-Never write `-a <secret>`, `--password <secret>`, or `-e VAR='<secret>'`. Anything in
-argv is also readable via `docker inspect`, `docker ps --no-trunc` and host `ps`.
+A **file template** is the exception, not the default — only when the process cannot
+take env (nginx.conf, TLS material, Redis `redis.conf` / `requirepass`). Then the
+worked example's `requirepass` line is the pattern: the config file has no shell
+parsing, so any byte is safe.
+
+`#!cxtower.secret.X!#` is a literal text replacement with **no shell escaping**. A
+value containing a quote, space, `$` or backtick breaks whatever quoting you wrapped
+around `--env KEY='…'`. Quote with single quotes for typical tokens (hex, url-safe
+base64). Do not use `--env-file` to dodge quoting — that writes the secret to disk.
+
+Never write `-a <secret>` or `--password <secret>` on a CLI that can read the secret
+from env or from a config file the process already mounts.
 
 Piping a secret on stdin (`docker run … --password-from-stdin`) still needs
 `docker run -i`. Without `-i` the process cannot read the pipe; the command fails and
@@ -171,7 +181,8 @@ must match real `key` records or the user will not know what to fill in.
 - [ ] No credential stored as a `variable` or `variable_value`
 - [ ] `secret_ids` not hand-maintained
 - [ ] Secrets listed in the handover message and in the manifest `description`
-- [ ] No secret in a shell argument (`-a`, `--password`, `-e VAR=`); file template
-      instead
+- [ ] No secret in a host file (`--env-file`, a rendered `.env`); prefer `--env`
+      (hard rule 18)
+- [ ] File templates used only when the process cannot take env
 - [ ] `docker run -i` when a secret is piped on stdin
 - [ ] No banned `_get_secret_value(` / `_get_secret_values(` / `_set_secret_values(`

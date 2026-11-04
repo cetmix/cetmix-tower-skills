@@ -33,7 +33,7 @@ with no file after it means that skill's `SKILL.md`.
 
 ## Non-negotiable rules
 
-The complete list is `references/hard-rules.md` — **seventeen rules, maintained in that
+The complete list is `references/hard-rules.md` — **twenty rules, maintained in that
 one file**, plus the authority order and the validation-honesty rule. Read it before
 writing anything; the five below are only the highest-frequency ones.
 
@@ -54,7 +54,7 @@ writing anything; the five below are only the highest-frequency ones.
 
 ## Workflow
 
-0. **Read `references/hard-rules.md`.** All seventeen rules, the authority order, and what
+0. **Read `references/hard-rules.md`.** All twenty rules, the authority order, and what
    you may and may not claim about validation.
 1. **Understand the target.** What software, which OS, one instance or many, does it
    need to be started/stopped/backed up, does it depend on other services?
@@ -85,9 +85,9 @@ A complete, verified example of both shapes for the same request ("deploy Redis"
 | `cetmix-tower-command-python`  | `action: python_code` — eval context, `result`, `custom_values`, metadata, provider APIs                                           |
 | `cetmix-tower-flight-plan`     | `plan`, `plan_line`, conditions, post-run actions, error handling, sub-plans                                                       |
 | `cetmix-tower-variables`       | `variable`, `variable_option`, `variable_value`, resolution order, rendering modes, `tower.*`                                      |
-| `cetmix-tower-secrets`         | `key` — secrets and SSH keys, inline syntax, what YAML cannot carry                                                                |
-| `cetmix-tower-files`           | `file_template`, `file`, `action: file_using_template`                                                                             |
-| `cetmix-tower-jets`            | `jet_template`, `jet_state`, `jet_action`, lifecycle graph, dependencies                                                           |
+| `cetmix-tower-secrets`         | `key` — secrets and SSH keys, inline syntax, env over files, what YAML cannot carry                                                |
+| `cetmix-tower-files`           | `file_template`, `file`, `action: file_using_template` — only when env cannot express the format                                   |
+| `cetmix-tower-jets`            | `jet_template`, `jet_state`, `jet_action`, lifecycle graph, `deletable`, `server_log_ids`, dependencies                            |
 | `cetmix-tower-waypoints`       | `jet_waypoint_template` — snapshots and backups                                                                                    |
 | `cetmix-tower-servers`         | `server`, `server_template`, `server_log`, `os`, `tag`, `shortcut`                                                                 |
 | `cetmix-tower-automation`      | `scheduled_task`, `webhook`, `webhook_authenticator`, `git_project`                                                                |
@@ -131,6 +131,12 @@ _Every path:_
       the jet or server, not only in `custom_values` (hard rule 17).
 - [ ] Secrets referenced as `#!cxtower.secret.<reference>!#`, declared as `key` records,
       and listed for the user to fill in.
+- [ ] Runtime config is `--env` (or the process's env) when that works; no host file
+      for secrets (hard rule 18).
+- [ ] Jet templates lock `deletable` on the first Prepare line and unlock it only as
+      the last Destroy step; Remove does not unlock (hard rule 19).
+- [ ] Jet templates nest `server_log_ids` covering the process log and any other
+      surface operators need (hard rule 20). Empty logs are a defect.
 - [ ] Every record whose YAML field list includes `note` has one (child rows like
       `plan_line`, `plan_line_action`, `variable_option` and `server_log` do not — see
       hard rule 8).

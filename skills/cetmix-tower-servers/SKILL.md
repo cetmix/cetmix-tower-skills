@@ -127,13 +127,17 @@ server_log_ids:
 - `log_type: command` → set `command_id` (and `use_sudo` if needed). The command must be
   `ssh_command` or `python_code`, and **must tolerate parallel execution** — several
   people may open the log at once. Set `allow_parallel_run: true` on it.
-- `log_type: file` → on a **server** use `file_id`; on a **server template** use
-  `file_template_id`, so a file is created per server.
+- `log_type: file` → on a **server** use `file_id`; on a **server template** or
+  **jet template** use `file_template_id`, so a file is created per server or Jet.
 
 Log output supports HTML; a custom formatter can be added by overriding
 `_format_log_text()` on `cx.tower.server.log`.
 
-Valid parents: `server`, `server_template`, `jet_template`.
+Valid parents: `server`, `server_template`, `jet_template`. On a **jet template** or
+**server template** use `file_template_id` for `log_type: file`; on an existing
+**server** or **jet** use `file_id`. Jet-template logs are copied onto each Jet at
+create — see `cetmix-tower-jets` (hard rule 20). A Jet template with empty
+`server_log_ids` is a defect.
 
 ## Shortcut
 
@@ -223,6 +227,7 @@ is. Tell the user which roles to set after import.
 - [ ] `skip_host_key` left `false`
 - [ ] Password-auth servers flagged to the user (no YAML path for the password)
 - [ ] Commands used by `log_type: command` have `allow_parallel_run: true`
+- [ ] Jet templates that this file defines include `server_log_ids` (hard rule 20)
 - [ ] `file_template_id` on templates, `file_id` on servers
 - [ ] `required: true` on template values with no sensible default
 - [ ] Shortcut access-level overrides justified and never destructive

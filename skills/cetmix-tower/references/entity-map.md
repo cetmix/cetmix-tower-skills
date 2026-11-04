@@ -31,7 +31,7 @@ Every Cetmix Tower entity, what it is for, and how it must appear in YAML.
 
 | YAML model      | Odoo model               | What it is                                                                                                                       |
 | --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `file_template` | `cx.tower.file.template` | Blueprint for a file: name, target directory, content with variables and secrets. Editing it updates every file created from it. |
+| `file_template` | `cx.tower.file.template` | Blueprint for a file: name, target directory, content with variables and secrets. Use only when the process cannot take env (hard rule 18). Editing it updates every file created from it. |
 | `file`          | `cx.tower.file`          | A concrete file on a server. `source: tower` = authored here and pushed; `source: server` = fetched from the host (logs).        |
 
 ## Servers
@@ -40,13 +40,13 @@ Every Cetmix Tower entity, what it is for, and how it must appear in YAML.
 | ----------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `server`          | `cx.tower.server`          | A managed host: SSH connection details, variables, secrets, logs, shortcuts, status.                  |
 | `server_template` | `cx.tower.server.template` | Blueprint for creating servers, with a plan that runs after creation and one before deletion.         |
-| `server_log`      | `cx.tower.server.log`      | A log view fetched either from a command's output (`log_type: command`) or a file (`log_type: file`). |
+| `server_log`      | `cx.tower.server.log`      | A log view on a Server or Jet form, from a command's output (`log_type: command`) or a file (`log_type: file`). Nest on `jet_template.server_log_ids` when designing a Jet (hard rule 20). |
 
 ## Jets
 
 | YAML model                | Odoo model                         | What it is                                                                                                                       |
 | ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `jet_template`            | `cx.tower.jet.template`            | Blueprint for a managed application: lifecycle actions, config, dependencies, waypoint templates, install/uninstall/clone plans. |
+| `jet_template`            | `cx.tower.jet.template`            | Blueprint for a managed application: lifecycle actions, config, dependencies, waypoint templates, install/uninstall/clone plans, and `server_log_ids` (hard rule 20). Lock `jet.deletable` in Prepare; unlock only at the end of Destroy (hard rule 19). |
 | `jet_state`               | `cx.tower.jet.state`               | A lifecycle stage. Eleven states ship with Tower — reuse those names, do not redefine them. The instance may have extra transits; list `cx.tower.jet.state` before writing conditions. |
 | `jet_action`              | `cx.tower.jet.action`              | A transition: `state_from_id` → `state_transit_id` → `state_to_id` (+ `state_error_id`), running `plan_id`.                      |
 | `jet_waypoint_template`   | `cx.tower.jet.waypoint.template`   | Snapshot/backup definition with up to four plans: create, arrive, leave, delete.                                                 |

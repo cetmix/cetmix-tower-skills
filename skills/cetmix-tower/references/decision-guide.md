@@ -92,8 +92,14 @@ into its own plan and call it from the parent with a command whose `action: plan
 
 **Granularity guide.** One command per: package install, directory creation, file push,
 container create, container start, service enable, single SQL statement, single API
-call. If you are tempted to write a 30-line heredoc, that content belongs in a **File
-Template**, not in command code.
+call.
+
+**Configuration belongs in env, not in a host file** (hard rule 18). If the process can
+take settings as environment variables, pass them as `docker create --env KEY=value` (or
+the process's own env). Never write secrets to disk (`--env-file`, a rendered `.env`).
+A File Template is only for formats env cannot express (nginx.conf, TLS material, Redis
+`redis.conf`). If you are tempted to write a 30-line heredoc, that content belongs in a
+**File Template**, not in command code — and only after env was ruled out.
 
 ---
 
@@ -123,7 +129,7 @@ touches the host: packages, files, containers, services, permissions, local CLI 
 - Use an SSH command with `curl` to call an API when the result must drive Tower logic —
   you would have to parse stdout. Use a Python command.
 - Put credentials in either one. Use secrets (`#!cxtower.secret.ref!#`), which are
-  masked in previews and logs.
+  masked in previews and logs. Prefer process env over a host file (hard rule 18).
 
 **Typical composition for a cloud deployment:**
 
@@ -134,11 +140,14 @@ touches the host: packages, files, containers, services, permissions, local CLI 
 4. Python command — `jet.set_variable_value(...)` (or `server.set_variable_value`) for
    any value a later file template must see. `custom_values` is not enough (hard
    rule 17).
-5. `file_using_template` command — push the rendered config file.
-6. SSH commands — start the service. Recreate the container (`docker create`) if the
-   file is consumed as `--env-file` or another create-time input; Restart does not
-   re-read it.
-7. Python command — verify, set status, report.
+5. Prefer `docker create --env` for runtime config (hard rule 18). Push a file template
+   only when the process cannot take env.
+6. SSH commands — start the service. Recreate the container (`docker create`) if
+   `--env` or another create-time input changed; Restart does not re-apply it.
+7. Python command — verify, set status, report. On a Jet, lock `deletable` on the first
+   Prepare line and unlock it only as the last Destroy step (hard rule 19). Nest
+   `server_log_ids` on the template so operators can read process and app logs from the
+   Jet form (hard rule 20).
 
 ---
 

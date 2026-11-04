@@ -38,7 +38,7 @@ element you are authoring: `cetmix-tower-command-actions`, `cetmix-tower-command
 
 ## Hard rules
 
-The complete list of seventeen rules, the authority order, and the validation-honesty rule
+The complete list of twenty rules, the authority order, and the validation-honesty rule
 live in **one canonical file**: `references/hard-rules.md` inside the **`cetmix-tower`
 skill**. Depending on how the assets were installed, that is
 `.claude/skills/cetmix-tower/references/hard-rules.md`,

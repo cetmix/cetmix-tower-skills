@@ -128,6 +128,32 @@ jet=...)` with no `variable_values`, so the file renders from stored Jet →
     jet, and jet template), then push the file. Persist on the Jet when the file is
     rendered in a Jet context. See `cetmix-tower-files` and
     `cetmix-tower-command-python`.
+18. **Do not store runtime configuration in a host file when the process can take
+    environment variables.** Prefer `docker create --env KEY=value` (and the
+    process's own env). Never write secrets to disk (`--env-file`, a rendered
+    `.env`). Use a `file_template` only for formats env cannot express (nginx.conf,
+    TLS material, a daemon that only reads a config file). Secrets still go through
+    `#!cxtower.secret.X!#`. `--env` is applied at `docker create` — Rebuild, not
+    Restart, after changing it. See `cetmix-tower-secrets` and
+    `cetmix-tower-command-ssh`.
+19. **A Jet is not deletable unless deletion is safe.** `jet.deletable` defaults to
+    `true`; `unlink` is blocked while it is `false`. Set `False` on the first line of
+    Prepare (before any host resource exists) and set `True` only as the last step of
+    Destroy, after containers, volumes, files and DNS are gone. Do not unlock on
+    Remove — data still exists. Reuse `set_jet_as_not_deletable` /
+    `set_jet_as_deletable`. See `cetmix-tower-jets`.
+20. **A Jet template ships the logs operators need to run it.** Empty
+    `server_log_ids` is a defect — a Jet with no logs is hard to control and
+    harder to repair. Nest `server_log` records on the template; they are copied
+    onto each Jet at create (`cx.tower.jet.create`). Cover every surface used for
+    control and maintenance: at least the process's own stdout/stderr
+    (`log_type: command`, typically `docker logs`; reuse `show_jet_logs` when it
+    exists), plus application files that log elsewhere (`log_type: file` and a
+    `source: server` file template), and extra command logs for health or sidecar
+    processes when those are how an operator diagnoses the service. Log commands
+    run with the Jet in context, so `{{ tower.jet.reference }}` resolves. They
+    must be `ssh_command` or `python_code` with `allow_parallel_run: true`. See
+    `cetmix-tower-jets` and `cetmix-tower-servers`.
 
 ## Authority order
 

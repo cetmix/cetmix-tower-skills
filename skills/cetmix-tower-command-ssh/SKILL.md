@@ -4,8 +4,9 @@ description:
   Write Cetmix Tower SSH commands (command records with action ssh_command) — the
   one-statement rule, why never to use &&, ; , cd or inline sudo, how to use the path
   and use_sudo fields instead, idempotency, OS scoping, variables and secrets inside
-  shell code, and server_status side effects. Use when authoring or reviewing any
-  shell-side Tower command.
+  shell code, preferring docker create --env over a host file (hard rule 18), and
+  server_status side effects. Use when authoring or reviewing any shell-side Tower
+  command.
 ---
 
 # SSH commands
@@ -106,9 +107,10 @@ masks it in previews and logs. See `cetmix-tower-secrets`.
 Be aware that a secret passed as a **command-line argument** is masked in Tower's log
 but visible in the host's process list — and a value with a quote, space, `$` or
 backtick breaks the surrounding quoting, usually as an authentication error rather than
-a syntax error. Never write `-a <secret>`, `--password <secret>` or `-e VAR='<secret>'`.
-Render the secret into a file template and have the process read the file. See
-`cetmix-tower-secrets`.
+a syntax error. Prefer process environment over a host file (hard rule 18):
+`docker create --env KEY='#!cxtower.secret.X!#'`. Do not write secrets into
+`--env-file` or a rendered `.env` on disk. A file template is only for formats the
+process cannot take as env. See `cetmix-tower-secrets`.
 
 ## Fields
 
@@ -120,7 +122,7 @@ Render the secret into a file template and have the process read the file. See
 | `code`               | The statement. Supports variables and secrets.                                                                                             |
 | `path`               | Default directory. Supports variables.                                                                                                     |
 | `access_level`       | `user` / `manager` / `root`. Default `manager`. Use `root` for destructive commands.                                                       |
-| `allow_parallel_run` | Default `false`, which means only one copy per server at a time. Keep `false` for anything stateful.                                       |
+| `allow_parallel_run` | Default `false`, which means only one copy per server at a time. Keep `false` for anything stateful. Set `true` on commands used as `server_log` sources — several people may open the log at once. |
 | `no_split_for_sudo`  | Only when a joined statement must stay joined.                                                                                             |
 | `os_ids`             | OSes this command is written for. Empty = all. Warning only, never a block.                                                                |
 | `tag_ids`            | Always add something.                                                                                                                      |
@@ -170,9 +172,24 @@ docker run -d -p {{ app_port }}:8069 \
 
 Quote values yourself where the shell needs it: `--name "{{ instance_name }}"`.
 
-`--env-file` on `docker create` is read when the container is **created**. A later
-push of that file does nothing until Rebuild runs `docker create` again. Restart is
-not enough. Same for image tag and other create-time flags.
+`--env` (and other `docker create` flags) are applied when the container is
+**created**. Changing them later does nothing until Rebuild runs `docker create`
+again. Restart is not enough. Same for the image tag.
+
+Do not use `--env-file` pointing at a host file — that is a host-side copy of the
+config, and it is where secrets leak (hard rule 18). Put each setting on
+`docker create --env KEY=value`. Tower's Jinja renderer uses `trim_blocks=True`, so
+a `{% endif %}` at the end of a `KEY=value` line eats the following newline and
+glues the next key onto the value. Wrap the **whole** `--env` line in the if/else,
+not the value.
+
+```bash
+{% if drone_tower_base_url.startswith('https://') %}
+  --env DRONE_ALLOW_PLAIN_HTTP_OUTBOUND=false \
+{% else %}
+  --env DRONE_ALLOW_PLAIN_HTTP_OUTBOUND=true \
+{% endif %}
+```
 
 `docker run` that must read stdin (`--password-from-stdin`, a piped secret) needs
 `-i`. Without it the CLI cannot read stdin; the command fails and may leave the
@@ -214,8 +231,9 @@ docker inspect --format '{% raw %}{{.State.Running}}{% endraw %}' NAME
 
 - **Calling an HTTP API and using the result in Tower** → Python command. Parsing `curl`
   output from a shell exit code is not workable.
-- **Writing a config file** → File Template + a `file_using_template` command. Never a
-  heredoc longer than a few lines inside `code`.
+- **Writing a config file** → env first (`docker create --env`, hard rule 18). A File
+  Template + `file_using_template` only when the process cannot take env. Never a
+  heredoc longer than a few lines inside `code`. Never `--env-file` for secrets.
 - **Deciding what to do next** → Python command setting `custom_values`, tested in the
   next line's `condition`.
 - **Running several statements** → more lines, or a sub-plan. The named
@@ -229,15 +247,17 @@ docker inspect --format '{% raw %}{{.State.Running}}{% endraw %}' NAME
       capture-and-branch)
 - [ ] No `cd`; directory in `path`
 - [ ] No `sudo` in code; `use_sudo` on the plan line
-- [ ] No literal credentials; secrets referenced inline and **not** passed as argv
+- [ ] No literal credentials; secrets referenced inline. Prefer `--env` over a host
+      file (hard rule 18); do not use `--env-file` for secrets
 - [ ] No raw `{{.GoTemplate}}` — brace-free filters or `{% raw %}` (also in wizard
       `code` overrides)
-- [ ] `--env-file` / create-time Docker flags followed by Rebuild, not Restart, when
-      the file or image changes
+- [ ] `--env` / create-time Docker flags followed by Rebuild, not Restart, when
+      they change
 - [ ] `docker run -i` when the process must read stdin
 - [ ] Non-interactive (`-y`, `DEBIAN_FRONTEND`)
 - [ ] Idempotent, or the plan tolerates the failure
 - [ ] `note` filled in, tags added
-- [ ] `allow_parallel_run: false` unless genuinely re-entrant
+- [ ] `allow_parallel_run: false` unless the command is a `server_log` source or
+      genuinely re-entrant
 - [ ] Every `{{ variable }}` has a `variable` record in the file
 - [ ] `os_ids` set when the syntax is distribution-specific

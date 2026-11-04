@@ -15,8 +15,9 @@ description:
 Tower server**, not on the remote host. No SSH connection is used.
 
 Reach for it when the work is: a third-party/provider HTTP API call, reading or writing
-Tower data, controlling flow inside a flight plan, or verification and reporting.
-Anything that touches the managed host is an SSH command instead.
+Tower data (including `jet.deletable` — hard rule 19), controlling flow inside a flight
+plan, or verification and reporting. Anything that touches the managed host is an SSH
+command instead.
 
 ## Contract
 
@@ -71,7 +72,7 @@ Full table with types and caveats: `references/eval-context.md`.
 | `custom_values`                                                                   | Mutable dict for SSH, Python, and conditions in one plan run — **not** `file_using_template` (hard rule 17)               |
 | `re`, `time`, `datetime`, `dateutil`, `timezone`                                  | Time and regex                                                                                                            |
 | `requests`                                                                        | `get`, `post`, `delete`, `request`                                                                                        |
-| `urllib_parse`, `json`, `hashlib`, `hmac`                                         | Encoding and hashing. `json` is `dumps` **only** — never `json(...)` or `json.loads`; parse HTTP with `response.json()`. |
+| `urllib_parse`, `json`, `hashlib`, `hmac`                                         | Encoding and hashing. `json` exposes `dumps` and `loads` — never `json(...)`; for HTTP responses prefer `response.json()`. |
 | `tldextract`, `dns`                                                               | Domain parsing and DNS                                                                                                    |
 | `float_compare`, `UserError`                                                      | Odoo helpers                                                                                                              |
 | `_logger`                                                                         | Debug logging only                                                                                                        |
@@ -90,6 +91,19 @@ Always use `get_by_reference`. References are case-sensitive.
 ```python
 srv = tower_servers.get_by_reference("my_server")          # good
 srv = env["cx.tower.server"].search([("reference", "=", "my_server")])  # avoid
+```
+
+## Jet deletion guard
+
+`jet.deletable` defaults to `true` and is readonly in the UI. `unlink` is blocked while
+it is `false`. Set it from a Python command in the Jet lifecycle — `False` on the first
+Prepare line, `True` only as the last Destroy step. Do not unlock on Remove. Reuse
+`set_jet_as_not_deletable` / `set_jet_as_deletable` when they exist. See
+`cetmix-tower-jets` (hard rule 19).
+
+```python
+jet.write({"deletable": False})
+result = {"exit_code": 0, "message": "Jet locked against deletion"}
 ```
 
 ## Variables and secrets in Python code
@@ -256,6 +270,8 @@ Beyond the shared command fields (`name`, `reference`, `note`, `tag_ids`,
 - [ ] `custom_values` keys you invent are `_`-prefixed
 - [ ] Values a later `file_using_template` must see use `jet.set_variable_value` /
       `server.set_variable_value`, not only `custom_values`
-- [ ] `json.dumps(...)` — never `json(...)` or `json.loads` (`json` is dumps-only)
+- [ ] `json.dumps(...)` / `json.loads(...)` — never `json(...)`
 - [ ] Credentials come from secrets, never variables or literals
+- [ ] If the command sets `deletable`: False on the first Prepare line, True only as
+      the last Destroy step; Remove does not unlock (hard rule 19)
 - [ ] `note` explains what the command does and what it writes
