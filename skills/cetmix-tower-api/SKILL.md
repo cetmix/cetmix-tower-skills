@@ -483,11 +483,12 @@ flow needs no private key at all. Types: `"ed25519"` (default), `"ecdsa"` (nistp
 ```python
 # External API (XML-RPC / JSON-RPC): methods starting with "_" are refused,
 # so go through the wizard. Its model is Manager-only.
-wizard_id = execute_kw("cx.tower.key.generate.wizard", "create", [{
-    "key_id": key_id, "key_type": "ed25519", "overwrite": False,
-}])
-execute_kw("cx.tower.key.generate.wizard", "action_generate_ssh_key", [[wizard_id]])
-public_key = execute_kw("cx.tower.key", "read", [[key_id], ["public_key"]])[0]["public_key"]
+wizard_id = models.execute_kw(db, uid, pwd, "cx.tower.key.generate.wizard", "create",
+    [{"key_id": key_id, "key_type": "ed25519", "overwrite": False}])
+models.execute_kw(db, uid, pwd, "cx.tower.key.generate.wizard",
+    "action_generate_ssh_key", [[wizard_id]])
+public_key = models.execute_kw(db, uid, pwd, "cx.tower.key", "read",
+    [[key_id], ["public_key"]])[0]["public_key"]
 
 # In-process Python (odoo shell, a module): call the method directly.
 public_key = key._generate_ssh_key(key_type="ed25519", overwrite=False)
@@ -501,8 +502,11 @@ public_key = key._generate_ssh_key(key_type="ed25519", overwrite=False)
   `AccessError` before any key is generated.
 - `public_key` (`"<algorithm> <base64>"`) is readable by Managers; it is not a secret.
   Writing `secret_value` yourself clears it.
-- On an older Tower the wizard model does not exist and the `create` call fails — that
-  is the signal to fall back to setting `secret_value`.
+- On an older Tower the wizard model does not exist: the `create` call fails with
+  `Object cx.tower.key.generate.wizard doesn't exist`. Only that error means "fall back";
+  an access or validation error does not. The fallback is a private key generated
+  elsewhere and written to `secret_value` from a real secret store — Tower then
+  stores the key but does not generate one, and `public_key` stays empty.
 
 So an API-driven provisioning flow _can_ be fully unattended, including secrets. Say so
 rather than telling the user to type them in, and make sure the value reaches the call

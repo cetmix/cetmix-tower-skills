@@ -161,7 +161,7 @@ result = {"exit_code": 0, "message": custom_values["_ssh_public_key"]}
 ```text
 # Later SSH commands, one statement each (path: ~ or the user's home)
 mkdir -p -m 700 ~/.ssh
-echo "{{ _ssh_public_key }}" >> ~/.ssh/authorized_keys
+printf '\n%s\n' "{{ _ssh_public_key }}" >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 ```
 
@@ -174,9 +174,21 @@ result = {"exit_code": 0, "message": "Server uses the new SSH key"}
 - **Create a new key every run; never pass `overwrite=True` on `server.ssh_key_id`.**
   One key can serve several Servers — regenerating it locks Tower out of all of them
   until each host gets the new public key.
+- The leading `\n` keeps the key on its own line when the file's last line has no
+  trailing newline; the blank line it may leave is ignored by `sshd`.
 - Switch the Server to the key only **after** the `authorized_keys` line succeeded:
-  keep the plan stopping on error there. The password stays stored, so setting
-  `ssh_auth_mode` back to `p` recovers a Server whose new key does not work.
+  keep the plan stopping on error there. Then prove the key with an SSH line right
+  after the switch (for example `whoami`): Tower caches SSH connections per auth mode,
+  so that line opens a new connection with the new key. Branch its failure (post-run
+  actions, `cetmix-tower-flight-plan/SKILL.md`) to a Python line that sets
+  `ssh_auth_mode` back to `"p"` — the password stays stored, so that recovers the
+  Server.
+- **Rotation** (the Server already had a key): in the generate command also save
+  `server.ssh_key_id.public_key` as `custom_values["_old_public_key"]`, and only after
+  the `whoami` check succeeds remove that line on the host:
+  `sed -i '\|{{ _old_public_key }}|d' ~/.ssh/authorized_keys` (other keys stay). Skip
+  it when the old key had no `public_key` (entered by hand) — there is no line to
+  match. Do not delete the old key record while other Servers still use it.
 - `_generate_ssh_key` is the only method that writes the pair; it is "private" by
   name but callable from `safe_eval` (only names with `__` are blocked). Over RPC
   use the wizard instead (`cetmix-tower-api/SKILL.md`).
