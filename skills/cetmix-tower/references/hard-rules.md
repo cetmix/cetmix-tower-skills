@@ -67,10 +67,11 @@ current skill.
     with no `state_from_id` (create) and exactly one with no `state_to_id` (destroy);
     Build and Start must use **different** plans. Reuse the eleven shipped `jet_state`
     records — never redefine them.
-12. **Commands with action `plan`, `jet_action`, `create_waypoint`,
-    `file_using_template` or `git_project_upload` run only from a flight plan line** —
-    there is no ad-hoc run path. `jet_action` and `create_waypoint` additionally
-    require a Jet context.
+12. **The Run Command wizard offers only `ssh_command` and `python_code`.**
+    Use flight-plan lines for orchestration actions. `create_waypoint` and, with
+    the backup module, `create_backup` also run from scheduled Command tasks.
+    Both require a Jet context; `jet_action` requires one too. Read
+    `cetmix-tower-command-actions` and `cetmix-tower-backups` for their contracts.
 13. **Reuse existing records by reference before defining new ones.** Commands like
     `update_packages`, plus tags, OSes and variables, usually already exist.
 14. **Establish the delivery path first:** a YAML file for a person to import, YAML

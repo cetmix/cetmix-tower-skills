@@ -3,14 +3,14 @@ name: cetmix-tower-command-actions
 description:
   Choose and wire the right Cetmix Tower command action, and author the orchestration
   actions in depth — plan, jet_action, create_waypoint, file_using_template, and
-  git_project_upload. Covers required companion fields, execution semantics, exit codes
-  and the flight-plan-only restriction. Use when a command must orchestrate something
+  git_project_upload and create_backup. Covers required companion fields, execution
+  semantics, exit codes and Jet execution contexts. Use when a command must orchestrate something
   rather than run a shell statement or Python.
 ---
 
 # Command actions
 
-`command.action` is required and has seven values. Two run code; five orchestrate.
+`command.action` is required. Two actions run code; optional modules add orchestration actions, including Create Backup.
 
 | Action                | Runs                                        | Companion fields                                                   | Form-required?     | Available in the run wizard? |
 | --------------------- | ------------------------------------------- | ------------------------------------------------------------------ | ------------------ | ---------------------------- |
@@ -20,6 +20,7 @@ description:
 | `plan`                | A child flight plan                         | `flight_plan_id`                                                   | Yes                | **No**                       |
 | `jet_action`          | A Jet lifecycle transition                  | `jet_template_id`, `jet_action_id`                                 | Yes                | **No**                       |
 | `create_waypoint`     | Creates a Jet waypoint                      | `waypoint_template_id`, optionally `fly_here`                      | Yes                | **No**                       |
+| `create_backup` | Creates a durable Jet backup | `backup_template_id` | No; runner validates it | **No** |
 | `git_project_upload`  | Writes the Jet's Git Project to a file      | `path`, `git_file_name`                                            | Yes                | **No**                       |
 
 `code` is not `required=True` on the model, and the command form marks it required only
@@ -28,25 +29,15 @@ imports without complaint, and simply does nothing at run time. Nothing will tel
 check it yourself.
 
 For the two code actions see `cetmix-tower-command-ssh` and
-`cetmix-tower-command-python`. This skill covers the other five.
+`cetmix-tower-command-python`. This skill covers orchestration actions.
 
-## Flight-plan-only is a hard restriction
+## Execution paths
 
-The ad-hoc **Run Command** wizard offers only `ssh_command` and `python_code`, and
-filters the selectable commands to the chosen action. The other five actions have no
-wizard path at all — they run only as a **flight plan line**.
-
-Consequences when designing:
-
-- A `file_using_template`, `plan`, `jet_action`, `create_waypoint` or
-  `git_project_upload` command needs a plan wrapping it, even if the plan has a single
-  line.
-- A `shortcut` or `scheduled_task` that should trigger one must use `action: plan` and
-  point at that wrapper plan, not `action: command`.
-- `jet_action` and `create_waypoint` additionally require a **Jet context** — the plan
-  must be run on a Jet (from a Jet form, a jet lifecycle action, or a waypoint plan),
-  not on a bare server. `git_project_upload` should also run on a Jet, but without a
-  Jet (or without a project) it finishes with status `0` and creates no file.
+The ad-hoc Run Command wizard offers only `ssh_command` and `python_code`.
+Orchestration actions run from flight-plan lines. `create_backup` and
+`create_waypoint` also run from scheduled **Command** tasks targeting a Jet;
+the absence of a Run Command wizard option does not make them plan-only.
+Both require Jet context. A bare server returns `JET_NOT_FOUND (-503)`.
 
 ## `action: plan` — run a child flight plan
 
@@ -314,3 +305,12 @@ transition.
       scheduled task with `action: command`
 - [ ] `server_status` empty on orchestration commands
 - [ ] `note` explains what the command orchestrates and what it assumes
+
+## `action: create_backup`
+
+Requires `cetmix_tower_backup` and a Root-selected `backup_template_id`. The Jet
+must use that Backup Template's Jet Template. Run from a flight-plan line or a
+scheduled Command task on a Jet. The command waits until Done (`0`) or Failed
+(`-510`); no template gives `-509`, no Jet gives `-503`. Line custom values reach
+the Backup plan and are stored for Restore and Delete. Backup values are not
+returned to the caller. Stop stops the Backup plan. See `cetmix-tower-backups`.

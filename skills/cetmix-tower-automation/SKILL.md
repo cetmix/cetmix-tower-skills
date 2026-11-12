@@ -253,3 +253,11 @@ and privacy still live on `git_repo`, not on `git_remote`. Read
 - [ ] Webhook `user_id` ("Run as User") flagged to the user — it defaults to
       Administrator
 - [ ] Git YAML checked against the module source, not the docs page
+
+## Jet backup schedules
+
+With `cetmix_tower_backup`, use `action: backup` and `backup_template_id`, then
+assign Jets of the matching Jet Template through the UI/API. Root configures the
+template; Managers with task access may run it. Each Jet has an independent
+savepoint and failures are reported without undoing other Jets' backups. A scheduled
+Command task can also run `create_backup` on a Jet. See `cetmix-tower-backups`.

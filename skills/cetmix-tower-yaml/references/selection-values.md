@@ -168,3 +168,9 @@ to their lowercased names:
 
 `preparing` · `draft` · `building` · `starting` · `running` · `stopping` · `stopped` ·
 `restarting` · `removing` · `removed` · `destroying`
+
+## Backup module additions
+
+With `cetmix_tower_backup`, `command.action` adds `create_backup` (Create Backup)
+and `scheduled_task.action` adds `backup` (Backup). Both use `backup_template_id`;
+see `cetmix-tower-backups` for Jet-only execution and Root access.
