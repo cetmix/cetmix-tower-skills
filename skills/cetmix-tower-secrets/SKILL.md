@@ -141,6 +141,51 @@ Tower command's — never an SSH session of your own.
 - No **Generate** button on the form means the installed Tower predates this feature —
   fall back to a key the user creates and pastes.
 
+### Generating the key pair in a flight plan
+
+When a plan configures a server (bootstrap from password to key auth, key rotation, a
+deploy key), generate the key in a `python_code` command and hand the public key to
+later lines through `custom_values`. Tested on Tower 18.0 as a Manager of the Server,
+without `sudo()` in the command:
+
+```python
+# Command "Generate SSH key" — action: python_code
+key = env["cx.tower.key"].create(
+    {"name": "SSH key " + server.name, "key_type": "k"}
+)
+custom_values["_ssh_key_id"] = key.id
+custom_values["_ssh_public_key"] = key._generate_ssh_key(key_type="ed25519")
+result = {"exit_code": 0, "message": custom_values["_ssh_public_key"]}
+```
+
+```text
+# Later SSH commands, one statement each (path: ~ or the user's home)
+mkdir -p -m 700 ~/.ssh
+echo "{{ _ssh_public_key }}" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+```python
+# Command "Use the new SSH key" — action: python_code, last line of the plan
+server.write({"ssh_key_id": custom_values["_ssh_key_id"], "ssh_auth_mode": "k"})
+result = {"exit_code": 0, "message": "Server uses the new SSH key"}
+```
+
+- **Create a new key every run; never pass `overwrite=True` on `server.ssh_key_id`.**
+  One key can serve several Servers — regenerating it locks Tower out of all of them
+  until each host gets the new public key.
+- Switch the Server to the key only **after** the `authorized_keys` line succeeded:
+  keep the plan stopping on error there. The password stays stored, so setting
+  `ssh_auth_mode` back to `p` recovers a Server whose new key does not work.
+- `_generate_ssh_key` is the only method that writes the pair; it is "private" by
+  name but callable from `safe_eval` (only names with `__` are blocked). Over RPC
+  use the wizard instead (`cetmix-tower-api/SKILL.md`).
+- The plan's user needs **write access to the Server** — Tower applies
+  `custom_values` to SSH rendering only then — and gets write access to the new key
+  as its creator (a Manager is added to the key's Managers by default).
+- `custom_values` do not reach `file_using_template` (hard rule 17); use the `echo`
+  line above, or persist the value first.
+
 `server.ssh_password` is not importable either — no YAML path exists for it.
 
 ## Access

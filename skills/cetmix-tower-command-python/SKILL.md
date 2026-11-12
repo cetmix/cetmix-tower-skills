@@ -153,9 +153,14 @@ for `file_using_template` (hard rule 17).
 | Read state                                      | `server.metadata`, `jet.metadata`, `waypoint.metadata`          |
 | Run a command on a server                       | `server.run_command(cmd_record)`                                |
 | Run a plan on a server                          | `server.run_flight_plan(plan_record)`                           |
+| Generate an SSH key pair, get the public key    | `key._generate_ssh_key(key_type="ed25519")` — see below          |
 
 Use **variables** for human-editable configuration and **metadata** for machine-written
 structures. Metadata is read-only in the UI and visible only in developer mode.
+
+SSH key generation: create a new `cx.tower.key` with `key_type: "k"` and call
+`_generate_ssh_key` on it; it returns the public key line. Full flight plan recipe:
+`cetmix-tower-secrets/SKILL.md` → "Generating the key pair in a flight plan".
 
 `set_variable_value` is on the variable mixin: `server`, `jet`, and `jet_template`.
 It returns `None`. Persist on the **Jet** when a later `file_using_template` in this
