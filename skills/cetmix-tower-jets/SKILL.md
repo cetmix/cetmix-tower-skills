@@ -5,8 +5,9 @@ description:
   Prepare/Build/Start/Stop/Restart/Remove/Destroy lifecycle, the required
   state_transit_id, create and destroy actions, why Build and Start must use different
   plans, template dependencies, install/uninstall/clone plans, limit_per_server,
-  deletable, and atomized vs monolithic design. Use whenever deploying a managed
-  application instance rather than running a one-off flight plan.
+  deletable, server logs for control and maintenance, and atomized vs monolithic
+  design. Use whenever deploying a managed application instance rather than running a
+  one-off flight plan.
 ---
 
 # Jets and Jet Templates
@@ -58,7 +59,8 @@ one-shot host action, a plain Flight Plan is the right answer — see
 | `action_ids`                                                   | The lifecycle — see below                                                                                 |
 | `template_requires_ids`                                        | Dependencies on other templates                                                                           |
 | `waypoint_template_ids`                                        | Snapshot definitions; see `cetmix-tower-waypoints`                                                        |
-| `server_log_ids`, `scheduled_task_ids`                         | Copied onto Jets created from the template                                                                |
+| `server_log_ids`                                               | **Required** (hard rule 20). Copied onto each Jet at create. A template with none is a defect. See _Logs_ below. |
+| `scheduled_task_ids`                                           | Copied onto Jets created from the template                                                                |
 | `note`                                                         | Required by convention                                                                                    |
 
 `access_level` is **not** a YAML field on `jet_template`. Neither is `icon`. The fields
@@ -67,6 +69,26 @@ one-shot host action, a plain Flight Plan is the right answer — see
 
 Install/uninstall/clone plans are a **different axis** from the lifecycle. Installing a
 template on a server prepares the host; the lifecycle governs each Jet on it.
+
+## Git file on a Jet
+
+A Jet Template gets a git checkout file from two pieces:
+
+1. The Jet's Git Project (launch wizard, clone wizard, Jet **Git Project** tab, or the
+   repo-line API — `cetmix-tower-api`).
+2. A flight plan line whose command has `action: git_project_upload`, with `path` and
+   `git_file_name`. Put that command on a Prepare/Build plan so the file exists before
+   aggregator or clone steps run.
+
+Do not use plan line `git_project_id` / `is_make_copy` or `__git_project__` for new
+templates — that path is **legacy**, kept only for servers that do not use Jets. New
+setups should link the Git Project to the Jet (Jet **Git Project** tab or the wizards)
+and write it to the host with **Upload Git Project**. See `cetmix-tower-automation`.
+For code, use the repo-line methods in `cetmix-tower-api`.
+
+With clone **Copy parent**, source references on the copy differ from the parent's, so
+checkout directories in the generated file differ. The clone plan must use the clone's
+own git file.
 
 ## States — reuse, never redefine
 
@@ -172,15 +194,64 @@ only when asked or genuinely required.
 
 ## `deletable`
 
-`jet.deletable` defaults to `true`. A Jet cannot be deleted while it is `false`.
+`jet.deletable` defaults to `true`. `unlink` is blocked while it is `false`
+(`cx.tower.jet.unlink`). The field is set by Jet actions, not by the operator.
 
-Guard partially built Jets: set it `false` in a Python command inside the Prepare or
-Build plan, and back to `true` in Destroy.
+A Jet is not deletable unless deletion is safe (hard rule 19):
+
+- Set `False` on the **first** line of Prepare, before any host resource exists.
+- Set `True` only as the **last** step of Destroy, after containers, volumes, files
+  and DNS are gone.
+- Do **not** unlock on Remove — data still exists, so deleting the Jet would orphan it.
+
+Reuse `set_jet_as_not_deletable` / `set_jet_as_deletable` when those commands already
+exist on the instance (count dependents first — hard rule 16). Otherwise create them:
 
 ```python
+# set_jet_as_not_deletable — first line of Prepare
 jet.write({"deletable": False})
 result = {"exit_code": 0, "message": "Jet locked against deletion"}
 ```
+
+```python
+# set_jet_as_deletable — last line of Destroy
+jet.write({"deletable": True})
+result = {"exit_code": 0, "message": "Jet unlocked"}
+```
+
+## Logs
+
+A Jet with no logs is hard to control and harder to repair (hard rule 20). Design the
+logs with the template, not afterwards.
+
+`server_log` records **must nest** under `jet_template.server_log_ids`. There is no
+`jet` YAML model, and `cx.tower.jet.create` copies those rows onto each new Jet
+(`jet_id` + `server_id`, `jet_template_id` cleared). File-type logs also call
+`file_template_id.create_file(server=jet.server_id, jet=jet)`. Logs added only on a
+server template do not appear on the Jet form.
+
+```yaml
+server_log_ids:
+  - reference: redis_jet_logs
+    name: Redis logs
+    log_type: command
+    command_id: show_jet_logs   # reuse when it exists; else a template-scoped command
+```
+
+Cover every surface an operator uses:
+
+| Need | How |
+| ---- | --- |
+| Process stdout/stderr | `log_type: command`. For Docker, `docker logs --tail 300 {{ tower.jet.reference }}` (or the container name variable). Reuse `show_jet_logs` when the instance already has it. |
+| A file the process writes | `log_type: file` + `file_template_id` on a `source: server` template. |
+| Health, sidecar, or a second process | Another `command` log. Several logs per Jet is the intended shape. |
+
+Log commands run with `jet=` set (`cx.tower.server.log._get_log_from_command`), so
+`{{ tower.jet.reference }}` and other Jet variables resolve. They must be
+`ssh_command` or `python_code` with **`allow_parallel_run: true`** — several people may
+open the log at once. `use_sudo` on `server_log` is a Boolean, not `n`/`p`.
+
+Do not use a log command that mutates the host. Fetching logs is read-only.
 
 ## Dependencies
 
@@ -285,6 +356,10 @@ the two-step idiom onto a template-scoped plan instead — see
 - [ ] Exactly one action with no `state_from_id`; exactly one with no `state_to_id`
 - [ ] Destroy is the terminal action; Stop and Restart are not
 - [ ] Build and Start use **different** plans; likewise Stop / Remove / Destroy
+- [ ] `deletable` is locked on the first Prepare line and unlocked only as the last
+      Destroy step; Remove does not unlock (hard rule 19)
+- [ ] `server_log_ids` cover the process log and any other operator surface; log
+      commands have `allow_parallel_run: true` (hard rule 20)
 - [ ] `running` is both reachable and leavable; no dead-end states
 - [ ] Standard shipped states referenced, not redefined
 - [ ] Plan-line conditions on `{{ tower.jet.state }}` include the action's transit;

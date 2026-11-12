@@ -56,8 +56,9 @@ cetmix-tower-skills/
     │   └── references/
     │       ├── yaml-vs-api.md            what each path can and cannot do
     │       └── access-matrix.md          per-model ACL, generated from security CSVs
-    ├── cetmix-tower-command-actions/     the six actions; plan, jet_action,
-    │   │                                 create_waypoint, file_using_template
+    ├── cetmix-tower-command-actions/     the seven actions; plan, jet_action,
+    │   │                                 create_waypoint, file_using_template,
+    │   │                                 git_project_upload
     │   └── references/exit-codes.md      every Tower exit code and how to branch on it
     ├── cetmix-tower-command-ssh/         action: ssh_command
     ├── cetmix-tower-command-python/      action: python_code
@@ -240,7 +241,7 @@ and update:
   `cetmix_tower_server/models/constants.py`
 - `skills/cetmix-tower-api/references/access-matrix.md` — from every
   `cetmix_tower_*/security/ir.model.access.csv`, plus the group implication chain in
-  `cetmix_tower_server/security/cetmix_tower_server_groups.xml`
+  `cetmix_tower_base/security/cetmix_tower_base_groups.xml`
 - `skills/cetmix-tower-jets/references/lifecycle-patterns.md` — shipped `jet_state`
   records, from `cetmix_tower_server/data/cx_tower_jet_state.xml`
 
@@ -250,8 +251,8 @@ model methods, and that the Git reference page predates the `cx.tower.git.repo` 
 
 ## Sources
 
-Built from, in authority order: the Cetmix Tower source code (`cetmix_tower_server`,
-`cetmix_tower_yaml`, `cetmix_tower_webhook`, `cetmix_tower_git`), the public
+Built from, in authority order: the Cetmix Tower source code (`cetmix_tower_base`,
+`cetmix_tower_server`, `cetmix_tower_yaml`, `cetmix_tower_webhook`, `cetmix_tower_git`), the public
 documentation at [tower.cetmix.com](https://tower.cetmix.com), and real exported YAML in
 `cetmix-tower-packages`.
 

@@ -309,9 +309,11 @@ records:
   every reference is defined before it is used.
 - Global `variable_value` records give sane defaults without touching any server.
 - `redis_data_dir`'s value uses `{{ redis_instance_name }}`: variables may compose.
-- `requirepass` in `redis.conf` is how the secret reaches Redis. The ping command reads
-  that file inside the container (`/usr/local/etc/redis/redis.conf` is where this
-  example mounts it) so the secret never enters the outer shell or argv. A
+- `requirepass` in `redis.conf` is how the secret reaches Redis. Redis does not take
+  `requirepass` as container env, so a file template is the right exception to hard
+  rule 18 — not `--env-file`, and not `-a` on `redis-cli`. The ping command reads that
+  file inside the container (`/usr/local/etc/redis/redis.conf` is where this example
+  mounts it) so the secret never enters the outer shell or argv. A
   `-a #!cxtower.secret…!#` form breaks on any metacharacter in the password and shows up
   as WRONGPASS.
 - `docker create` and `docker start` are **separate** commands. That separation is what
@@ -330,8 +332,9 @@ records:
 Shape decision: the user wants several Redis instances per host, each startable,
 stoppable and snapshottable → Jet Template.
 
-Everything from variant A is reused. Only the plans and the template are new: the seven
-commands are split across lifecycle plans instead of one long plan.
+Everything from variant A is reused. Variant B adds Stop/Remove/Destroy commands, the
+lock/unlock Python commands (hard rule 19), the container-log command and
+`server_log_ids` (hard rule 20), the lifecycle plans, and the template.
 
 **Several instances per host means the per-instance values must actually differ.**
 Variant A's global values are a single instance's values — `redis_instance_name: redis`,
@@ -418,15 +421,53 @@ records:
       - redis
     code: rm -rf {{ redis_data_dir }}
 
+  - cetmix_tower_model: command
+    reference: redis_lock_jet
+    name: Redis - lock Jet against deletion
+    action: python_code
+    access_level: manager
+    tag_ids: [redis]
+    note: First Prepare line. Sets jet.deletable False before any host resource exists.
+    code: |
+      jet.write({"deletable": False})
+      result = {"exit_code": 0, "message": "Jet locked against deletion"}
+
+  - cetmix_tower_model: command
+    reference: redis_unlock_jet
+    name: Redis - unlock Jet for deletion
+    action: python_code
+    access_level: manager
+    tag_ids: [redis]
+    note: Last Destroy line. Sets jet.deletable True only after data is gone.
+    code: |
+      jet.write({"deletable": True})
+      result = {"exit_code": 0, "message": "Jet unlocked"}
+
+  - cetmix_tower_model: command
+    reference: redis_show_logs
+    name: Redis - show container logs
+    action: ssh_command
+    access_level: manager
+    allow_parallel_run: true
+    tag_ids: [redis, docker]
+    note: >-
+      Read-only docker logs for the Jet form. allow_parallel_run is true because several
+      people may open the log at once (hard rule 20). Reuse show_jet_logs on instances
+      that already ship it.
+    code: docker logs --tail 300 {{ redis_instance_name }}
+
   # One plan per lifecycle action. Never share a plan between Build and Start.
   - cetmix_tower_model: plan
     reference: redis_jet_prepare
     name: Redis Jet - Prepare
     access_level: manager
     tag_ids: [redis, docker]
-    note: Creates the directory structure and pushes redis.conf.
+    note: Locks the Jet, then creates the directory structure and pushes redis.conf.
     on_error_action: e
     line_ids:
+      - reference: redis_jet_prepare_line_05
+        sequence: 5
+        command_id: redis_lock_jet
       - reference: redis_jet_prepare_line_10
         sequence: 10
         command_id: redis_create_data_dir
@@ -500,12 +541,15 @@ records:
     name: Redis Jet - Destroy
     access_level: manager
     tag_ids: [redis, docker]
-    note: Final teardown. Deletes the data directory. Irreversible.
+    note: Final teardown. Deletes the data directory, then unlocks the Jet. Irreversible.
     on_error_action: n
     line_ids:
       - reference: redis_jet_destroy_line_10
         sequence: 10
         command_id: redis_remove_data_dir
+      - reference: redis_jet_destroy_line_20
+        sequence: 20
+        command_id: redis_unlock_jet
 
   # ---------------------------------------------------------------- jet template
   - cetmix_tower_model: jet_template
@@ -533,6 +577,11 @@ records:
         value_char: redis_{{ tower.jet.reference }}
     # No redis_port value here on purpose - see the note above. A template-level
     # default would silently collide on the second Jet.
+    server_log_ids:
+      - reference: redis_jet_logs
+        name: Redis logs
+        log_type: command
+        command_id: redis_show_logs
     # jet_action has no jet_template_id in YAML, so actions MUST be nested here.
     # Lifecycle states below are the ones shipped with Tower — never redefine them.
     action_ids:
@@ -664,7 +713,8 @@ the concrete Jets to be linked. Without that the line quietly does nothing — s
   server, so the Jet cannot be created on an unprepared host.
 - A `jet_waypoint_template` for backup/restore (`redis-cli BGSAVE` + copy the dump on
   create, restore on arrive). See `cetmix-tower-waypoints`.
-- Python commands in Prepare/Build setting `jet.write({"deletable": False})` and in
-  Destroy setting it back to `True`, so a half-built Jet cannot be deleted.
+- On instances that already ship `set_jet_as_not_deletable` / `set_jet_as_deletable`,
+  reuse those instead of the Redis-prefixed lock commands (hard rule 16).
+- On instances that already ship `show_jet_logs`, reuse it instead of `redis_show_logs`.
 - `template_requires_ids` if you split Docker out into its own Jet Template (atomized
   shape).

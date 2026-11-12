@@ -9,7 +9,7 @@ Every Cetmix Tower entity, what it is for, and how it must appear in YAML.
 
 | YAML model         | Odoo model                  | What it is                                                                                                                                         |
 | ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `command`          | `cx.tower.command`          | One unit of work. Its `action` decides what it does: `ssh_command`, `python_code`, `file_using_template`, `plan`, `jet_action`, `create_waypoint`. |
+| `command`          | `cx.tower.command`          | One unit of work. Its `action` decides what it does: `ssh_command`, `python_code`, `file_using_template`, `plan`, `jet_action`, `create_waypoint`, `git_project_upload`. |
 | `plan`             | `cx.tower.plan`             | Flight Plan — an ordered list of lines, each running one command, with conditions and per-line error handling.                                     |
 | `plan_line`        | `cx.tower.plan.line`        | One step of a plan: `command_id` + `sequence` + `condition` + `use_sudo` + `path`.                                                                 |
 | `plan_line_action` | `cx.tower.plan.line.action` | Post-run action: inspect the line's exit code, decide whether to continue, and optionally set variable values.                                     |
@@ -31,7 +31,7 @@ Every Cetmix Tower entity, what it is for, and how it must appear in YAML.
 
 | YAML model      | Odoo model               | What it is                                                                                                                       |
 | --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `file_template` | `cx.tower.file.template` | Blueprint for a file: name, target directory, content with variables and secrets. Editing it updates every file created from it. |
+| `file_template` | `cx.tower.file.template` | Blueprint for a file: name, target directory, content with variables and secrets. Use only when the process cannot take env (hard rule 18). Editing it updates every file created from it. |
 | `file`          | `cx.tower.file`          | A concrete file on a server. `source: tower` = authored here and pushed; `source: server` = fetched from the host (logs).        |
 
 ## Servers
@@ -40,13 +40,13 @@ Every Cetmix Tower entity, what it is for, and how it must appear in YAML.
 | ----------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `server`          | `cx.tower.server`          | A managed host: SSH connection details, variables, secrets, logs, shortcuts, status.                  |
 | `server_template` | `cx.tower.server.template` | Blueprint for creating servers, with a plan that runs after creation and one before deletion.         |
-| `server_log`      | `cx.tower.server.log`      | A log view fetched either from a command's output (`log_type: command`) or a file (`log_type: file`). |
+| `server_log`      | `cx.tower.server.log`      | A log view on a Server or Jet form, from a command's output (`log_type: command`) or a file (`log_type: file`). Nest on `jet_template.server_log_ids` when designing a Jet (hard rule 20). |
 
 ## Jets
 
 | YAML model                | Odoo model                         | What it is                                                                                                                       |
 | ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `jet_template`            | `cx.tower.jet.template`            | Blueprint for a managed application: lifecycle actions, config, dependencies, waypoint templates, install/uninstall/clone plans. |
+| `jet_template`            | `cx.tower.jet.template`            | Blueprint for a managed application: lifecycle actions, config, dependencies, waypoint templates, install/uninstall/clone plans, and `server_log_ids` (hard rule 20). Lock `jet.deletable` in Prepare; unlock only at the end of Destroy (hard rule 19). |
 | `jet_state`               | `cx.tower.jet.state`               | A lifecycle stage. Eleven states ship with Tower — reuse those names, do not redefine them. The instance may have extra transits; list `cx.tower.jet.state` before writing conditions. |
 | `jet_action`              | `cx.tower.jet.action`              | A transition: `state_from_id` → `state_transit_id` → `state_to_id` (+ `state_error_id`), running `plan_id`.                      |
 | `jet_waypoint_template`   | `cx.tower.jet.waypoint.template`   | Snapshot/backup definition with up to four plans: create, arrive, leave, delete.                                                 |
@@ -68,16 +68,17 @@ API, not imported.
 
 | YAML model        | Odoo model                 | What it is                                                                          |
 | ----------------- | -------------------------- | ----------------------------------------------------------------------------------- |
-| `git_project`     | `cx.tower.git.project`     | Set of git sources, renderable into files (e.g. git-aggregator format).             |
+| `git_project`     | `cx.tower.git.project`     | Set of git sources. Linked to a Jet (`cx.tower.jet.git_project_id`) for new setups. |
 | `git_source`      | `cx.tower.git.source`      | One source inside a project.                                                        |
 | `git_remote`      | `cx.tower.git.remote`      | One remote of a source, with head and head type.                                    |
 | `git_repo`        | `cx.tower.git.repo`        | A repository: URL, private flag, access secret. Referenced by `git_remote.repo_id`. |
 | `git_repo_owner`  | `cx.tower.git.repo.owner`  | Account or organisation owning repositories, with its own secret.                   |
-| `git_project_rel` | `cx.tower.git.project.rel` | Ties a project to a file on a server, in a given format.                            |
+| `git_project_rel` | `cx.tower.git.project.rel` | **Legacy**, kept only for servers that do not use Jets: ties a project to a file on a server. New setups link the Git Project to the Jet (Jet **Git Project** tab or the wizards) and write it with **Upload Git Project**. |
 
-The Git module has evolved past its documentation page (repository URL and provider now
-live on `cx.tower.git.repo`). Read `cetmix_tower_git/models/*.py` before writing Git
-YAML. Field lists: `cetmix-tower-yaml/references/model-fields.md`.
+The Jet link is `cx.tower.jet.git_project_id` (not a YAML model; Jets are not
+exported). The deprecated server link is `server.git_project_rel_ids`. For code, use
+the repo-line methods in `cetmix-tower-api`. Field lists:
+`cetmix-tower-yaml/references/model-fields.md`.
 
 ---
 
@@ -100,7 +101,7 @@ parent's x2m field, or it will be created orphaned.
 | `scheduled_task_cv`       | **Must nest**       | `scheduled_task.custom_variable_value_ids`                                                                                                             |
 | `git_source`              | **Must nest**       | `git_project.source_ids`                                                                                                                               |
 | `git_remote`              | **Must nest**       | `git_source.remote_ids`                                                                                                                                |
-| `git_project_rel`         | **Must nest**       | `server.git_project_rel_ids` — `server_id` is required on the model but absent from its YAML field list, so a top-level record cannot import           |
+| `git_project_rel`         | **Must nest**       | **Legacy**, kept only for servers that do not use Jets: `server.git_project_rel_ids` — `server_id` is required on the model but absent from its YAML field list, so a top-level record cannot import. New setups use Jet Git Projects + `git_project_upload` |
 | `variable_value`          | Either              | Top-level ⇒ **global value**. Nest under `variable_value_ids` of `server`, `server_template`, `jet_template` or `plan_line_action` for a scoped value. |
 | `jet_waypoint_template`   | Either              | Has `jet_template_id` (resolved after the main import pass), so top-level works.                                                                       |
 | everything else           | Top-level or nested | —                                                                                                                                                      |

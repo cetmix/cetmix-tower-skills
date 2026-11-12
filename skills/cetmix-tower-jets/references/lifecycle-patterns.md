@@ -170,20 +170,24 @@ Follows the demo-data shape: `docker` → `nginx` / `postgres` / `mariadb` → `
 
 ## Deletion guard
 
+Hard rule 19. `deletable` defaults to `true`, so without the guard a half-built Jet can
+be deleted, leaving orphaned resources on the host. Unlock only when Destroy has
+finished — not on Remove.
+
+Reuse `set_jet_as_not_deletable` / `set_jet_as_deletable` when they exist on the
+instance.
+
 ```python
-# In a Python command inside the Prepare or Build plan
+# First line of Prepare — before any host resource exists
 jet.write({"deletable": False})
 result = {"exit_code": 0, "message": "Jet locked against deletion"}
 ```
 
 ```python
-# In a Python command inside the Destroy plan
+# Last line of Destroy — after containers, volumes, files and DNS are gone
 jet.write({"deletable": True})
 result = {"exit_code": 0, "message": "Jet unlocked"}
 ```
-
-`deletable` defaults to `true`, so without the guard a half-built Jet can be deleted,
-leaving orphaned resources on the host.
 
 ---
 
@@ -207,9 +211,13 @@ loop.
 - Set an explicit stop grace period sized to the workload — Docker's 10s default
   truncates a large final save.
 - Pull the image explicitly in Build before `docker create`, and allow a digest pin.
-- `--env-file` (and other `docker create` flags) are applied at **create** time.
-  Changing the env file or image tag later requires Rebuild (`docker create` again).
-  Restart starts the existing container and does not re-read the file.
+- Pass runtime config as `docker create --env KEY=value`, not `--env-file` (hard
+  rule 18). `--env` and other create-time flags are applied at **create** time.
+  Changing them or the image tag later requires Rebuild (`docker create` again).
+  Restart starts the existing container and does not re-read env.
+- Nest `server_log_ids` on the template (hard rule 20): at least `docker logs` (or
+  `show_jet_logs`), plus file or extra command logs for anything that does not go to
+  stdout. A Jet with no logs cannot be diagnosed from the form.
 - Label the **container**, any **volumes** you create, and any **images** you build with
   `tower.jet={{ tower.jet.reference }}`. Shared cleanup commands filter on that label:
   `delete_jet_volumes` uses `docker volume ls --filter label=…`; `remove_all_jet_images`

@@ -1,8 +1,8 @@
 # Selection field values
 
 YAML carries the selection **key**, never the human label. Verified against
-`cetmix_tower_server/models/*.py`, `cetmix_tower_webhook/models/*.py` and
-`cetmix_tower_git/models/*.py`.
+`cetmix_tower_base/models/*.py`, `cetmix_tower_server/models/*.py`,
+`cetmix_tower_webhook/models/*.py` and `cetmix_tower_git/models/*.py`.
 
 ## `access_level` — the one exception
 
@@ -34,8 +34,9 @@ neither sets `yaml_export` on it, so a value is validated and then silently drop
 | `plan`                | Run another Flight Plan                    | **Flight-plan only**; set `flight_plan_id`                              |
 | `jet_action`          | Trigger a Jet lifecycle action             | **Flight-plan only**; set `jet_template_id` + `jet_action_id`           |
 | `create_waypoint`     | Create a Waypoint for the current Jet      | **Flight-plan only**; set `waypoint_template_id`, optionally `fly_here` |
+| `git_project_upload`  | Write the Jet's Git Project to a file      | **Flight-plan only**; set `path` and `git_file_name`. Run on a Jet; without a Jet or project it succeeds and writes nothing |
 
-All four **Flight-plan only** actions have no ad-hoc run path: the Run Command wizard's
+All five **Flight-plan only** actions have no ad-hoc run path: the Run Command wizard's
 own `action` field offers `ssh_command` and `python_code` only, and it filters the
 selectable commands by it. `jet_action` and `create_waypoint` additionally need a Jet
 context — the plan must be running on a Jet. See `cetmix-tower-command-actions`.
@@ -149,6 +150,8 @@ With `interval_type: dow`, at least one of `monday`…`sunday` must be `true`.
 | -------------------------------- | -------------------------- |
 | `git_remote.head_type`           | `branch` · `pr` · `commit` |
 | `git_project_rel.project_format` | `git_aggregator`           |
+
+`project_format` is kept in YAML and hidden in the UI.
 
 ---
 

@@ -3,9 +3,9 @@
 **They are not equivalent.** Each can do things the other cannot. Pick per task, and
 know the asymmetries before promising a workflow.
 
-Verified against `cetmix_tower_yaml/models/cx_tower_yaml_mixin.py`, the import wizard
-and `cx_tower_vault_mixin.py`. Which fields are exported is the `yaml_export`
-attribute on each field.
+Verified against `cetmix_tower_yaml/models/cx_tower_yaml_mixin.py`, the import wizard,
+`cetmix_tower_base/models/cx_tower_vault_mixin.py` and the per-model
+`_get_fields_for_yaml()` lists.
 
 ---
 
