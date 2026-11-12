@@ -530,6 +530,40 @@ env["cx.tower.key.value"].create({
   `create`/`write`.
 - YAML carries only `name`, `key_type`, `note`, `reference` — never a value.
 
+### Generating an SSH key pair
+
+Tower can create the pair for an SSH Key (`key_type: "k"`) record, so a provisioning
+flow needs no private key at all. Types: `"ed25519"` (default), `"ecdsa"` (nistp256),
+`"rsa"` (4096 bit); anything else raises `UserError`.
+
+```python
+# External API (XML-RPC / JSON-RPC): methods starting with "_" are refused,
+# so go through the wizard. Its model is Manager-only.
+wizard_id = models.execute_kw(db, uid, pwd, "cx.tower.key.generate.wizard", "create",
+    [{"key_id": key_id, "key_type": "ed25519", "overwrite": False}])
+models.execute_kw(db, uid, pwd, "cx.tower.key.generate.wizard",
+    "action_generate_ssh_key", [[wizard_id]])
+public_key = models.execute_kw(db, uid, pwd, "cx.tower.key", "read",
+    [[key_id], ["public_key"]])[0]["public_key"]
+
+# In-process Python (odoo shell, a module): call the method directly.
+public_key = key._generate_ssh_key(key_type="ed25519", overwrite=False)
+```
+
+- `overwrite=False` raises `UserError` when the key already holds a private key —
+  including one set by hand — and changes nothing. `overwrite=True` replaces it; the old
+  private key cannot be recovered.
+- The caller needs **write** access to that key record: a Manager listed in its
+  `manager_ids` (or in the related server's managers) or Root. Read-only access raises
+  `AccessError` before any key is generated.
+- `public_key` (`"<algorithm> <base64>"`) is readable by Managers; it is not a secret.
+  Writing `secret_value` yourself clears it.
+- On an older Tower the wizard model does not exist: the `create` call fails with
+  `Object cx.tower.key.generate.wizard doesn't exist`. Only that error means "fall back";
+  an access or validation error does not. The fallback is a private key generated
+  elsewhere and written to `secret_value` from a real secret store — Tower then
+  stores the key but does not generate one, and `public_key` stays empty.
+
 So an API-driven provisioning flow _can_ be fully unattended, including secrets. Say so
 rather than telling the user to type them in, and make sure the value reaches the call
 from a real secret store, never from a literal in the script or from your own context.

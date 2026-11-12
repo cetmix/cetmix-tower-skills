@@ -1,7 +1,7 @@
 ---
 name: cetmix-tower-secrets
 description: Handle sensitive data in Cetmix Tower — key records of type Secret and SSH
-  Key, the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, preferring process env over a host file (hard rule 18), and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
+  Key, generating an SSH key pair in Tower (from the form, the API or a flight plan), the inline reference syntax #!cxtower.secret.ref!#, secret value priority (server+partner, server, partner, global), why YAML can never carry secret values, preferring process env over a host file (hard rule 18), and the rules against putting credentials in variables, command code or file content. Use whenever a token, password, API key or private key is involved.
 ---
 
 # Secrets and SSH keys
@@ -11,7 +11,7 @@ One model, `cetmix_tower_model: key`, two types:
 | `key_type` | Purpose                                                                                  |
 | ---------- | ---------------------------------------------------------------------------------------- |
 | `s`        | **Secret** — a token, password or any sensitive string used inline in commands and files |
-| `k`        | **SSH Key** — a private key selectable in server settings                                |
+| `k`        | **SSH Key** — a private key selectable in server settings; Tower can generate it         |
 
 ## Non-negotiable rules
 
@@ -105,11 +105,98 @@ without changing a single command.
   reference: production_ssh_key
   key_type: k
   name: Production SSH Key
-  note: Deploy key for production hosts. Private key must be pasted in the UI.
+  note: Deploy key for production hosts. Generate it on the key form after import.
 ```
 
 Referenced from `server.ssh_key_id` / `server_template.ssh_key_id`, used when
 `ssh_auth_mode: k`. The key value is write-only and inaccessible after saving.
+
+### Generating the key pair — no `ssh-keygen`
+
+Tower creates the pair itself. Do not tell the user to run `ssh-keygen` and paste the
+private key; tell them to open the saved SSH Key record and click **Generate**
+(**Regenerate** when a private key is already stored — it asks for confirmation, and
+the old private key is gone for good).
+
+| Key type            | Algorithm                       |
+| ------------------- | ------------------------------- |
+| `ed25519` (default) | Ed25519                         |
+| `ecdsa`             | ECDSA, curve nistp256 (256 bit) |
+| `rsa`               | RSA, 4096 bit                   |
+
+No other sizes, curves or DSA. The private key is stored in the vault in OpenSSH format
+**without a passphrase**. The **Public Key** field (`public_key`, read-only, Managers
+only) then shows one line, `<algorithm> <base64>`, with a copy button. That line goes
+into `~/.ssh/authorized_keys` on the host. Getting it there is the user's step or a
+Tower command's — never an SSH session of your own.
+
+- `public_key` is **not a secret** and **not in YAML** — it exists only after
+  generation, in the database.
+- Writing the private key by hand (UI or API) **clears** `public_key`. An empty Public
+  Key therefore means "entered manually or never generated", not "no key".
+- Generating needs **write** access to the key: a Manager in the key's Managers or in
+  the Managers of a Server that uses it, or Root. A Manager who can only read the key
+  gets an access error before anything is generated.
+- Generating over the API: `cetmix-tower-api/SKILL.md`.
+- No **Generate** button on the form means the installed Tower predates this feature —
+  fall back to a key the user creates and pastes.
+
+### Generating the key pair in a flight plan
+
+When a plan configures a server (bootstrap from password to key auth, key rotation, a
+deploy key), generate the key in a `python_code` command and hand the public key to
+later lines through `custom_values`. Tested on Tower 18.0 as a Manager of the Server,
+without `sudo()` in the command:
+
+```python
+# Command "Generate SSH key" — action: python_code
+key = env["cx.tower.key"].create(
+    {"name": "SSH key " + server.name, "key_type": "k"}
+)
+custom_values["_ssh_key_id"] = key.id
+custom_values["_ssh_public_key"] = key._generate_ssh_key(key_type="ed25519")
+result = {"exit_code": 0, "message": custom_values["_ssh_public_key"]}
+```
+
+```text
+# Later SSH commands, one statement each (path: ~ or the user's home)
+mkdir -p -m 700 ~/.ssh
+printf '\n%s\n' "{{ _ssh_public_key }}" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+```python
+# Command "Use the new SSH key" — action: python_code, last line of the plan
+server.write({"ssh_key_id": custom_values["_ssh_key_id"], "ssh_auth_mode": "k"})
+result = {"exit_code": 0, "message": "Server uses the new SSH key"}
+```
+
+- **Create a new key every run; never pass `overwrite=True` on `server.ssh_key_id`.**
+  One key can serve several Servers — regenerating it locks Tower out of all of them
+  until each host gets the new public key.
+- The leading `\n` keeps the key on its own line when the file's last line has no
+  trailing newline; the blank line it may leave is ignored by `sshd`.
+- Switch the Server to the key only **after** the `authorized_keys` line succeeded:
+  keep the plan stopping on error there. Then prove the key with an SSH line right
+  after the switch (for example `whoami`): Tower caches SSH connections per auth mode,
+  so that line opens a new connection with the new key. Branch its failure (post-run
+  actions, `cetmix-tower-flight-plan/SKILL.md`) to a Python line that sets
+  `ssh_auth_mode` back to `"p"` — the password stays stored, so that recovers the
+  Server.
+- **Rotation** (the Server already had a key): in the generate command also save
+  `server.ssh_key_id.public_key` as `custom_values["_old_public_key"]`, and only after
+  the `whoami` check succeeds remove that line on the host:
+  `sed -i '\|{{ _old_public_key }}|d' ~/.ssh/authorized_keys` (other keys stay). Skip
+  it when the old key had no `public_key` (entered by hand) — there is no line to
+  match. Do not delete the old key record while other Servers still use it.
+- `_generate_ssh_key` is the only method that writes the pair; it is "private" by
+  name but callable from `safe_eval` (only names with `__` are blocked). Over RPC
+  use the wizard instead (`cetmix-tower-api/SKILL.md`).
+- The plan's user needs **write access to the Server** — Tower applies
+  `custom_values` to SSH rendering only then — and gets write access to the new key
+  as its creator (a Manager is added to the key's Managers by default).
+- `custom_values` do not reach `file_using_template` (hard rule 17); use the `echo`
+  line above, or persist the value first.
 
 `server.ssh_password` is not importable either — no YAML path exists for it.
 

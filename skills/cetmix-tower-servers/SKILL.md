@@ -46,6 +46,11 @@ provider API — but importable for bootstrapping.
 **`ssh_password` is not importable.** A server imported with `ssh_auth_mode: p` needs
 its password entered in the UI. Prefer key authentication.
 
+Tower generates SSH key pairs itself (**Generate** on the key form). A plan can also move
+a password Server to a freshly generated key: generate in Python, append the public key
+to `~/.ssh/authorized_keys`, then set `ssh_key_id` and `ssh_auth_mode: k`. Recipe and
+pitfalls: `cetmix-tower-secrets/SKILL.md` → "Generating the key pair in a flight plan".
+
 `status` is not importable either. Set it from commands (`command.server_status`),
 Python code, or an API. Values: `stopped`, `starting`, `running`, `stopping`,
 `restarting`, `deleting`, `delete_error`. Read it back as `tower.server.status`.
