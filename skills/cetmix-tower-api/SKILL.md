@@ -558,3 +558,17 @@ from a real secret store, never from a literal in the script or from your own co
       plans via `cx.tower.plan.run.wizard`
 - [ ] Action methods that return `None` not retried on marshal faults — check the
       record instead
+
+## Private log and backup methods
+
+`start`, `finish` and `record` on `cx.tower.plan.log` and `cx.tower.command.log`
+are decorated with `@api.private`. XML-RPC/JSON-RPC calls are rejected, including
+through the web dataset endpoint. Existing Python calls keep working. Run commands
+and plans through supported execution entry points instead of creating or finishing
+logs directly. Existing Stop methods remain public.
+
+With `cetmix_tower_backup`, `cx.tower.jet.create_backup()` is also private to
+in-process Python. Root can use the Back Up wizard; configured scheduled tasks,
+commands and waypoints trigger it internally. `backup.restore(server, ...)` can
+accept `variable_values` overrides; the Restore dialog has no such input. See
+`cetmix-tower-backups`.

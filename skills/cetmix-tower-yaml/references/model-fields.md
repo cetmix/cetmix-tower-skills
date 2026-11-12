@@ -6,6 +6,7 @@ during import. A field is exported when it sets `yaml_export` in the YAML module
 - `cetmix_tower_yaml/models/*.py` — core models
 - `cetmix_tower_webhook/models/*.py` — `webhook`, `webhook_authenticator`
 - `cetmix_tower_git/models/*.py` — `git_*` models, plus extra fields on `plan_line`
+- `cetmix_tower_backup/models/*.py` — `backup_template` and backup links on existing models
 
 `reference` is available on every model and is required on top-level records.
 `explode` nests the child. `include` writes a reference and, when related records
@@ -30,7 +31,7 @@ Also read `_get_force_x2m_resolve_models` on the mixin, `server` and `server_tem
 `reference`, `access_level`, `name`, `action`, `allow_parallel_run`, `note`, `os_ids`,
 `tag_ids`, `path`, `git_file_name`, `file_template_id`, `if_file_exists`,
 `disconnect_file`, `flight_plan_id`, `jet_template_id`, `jet_action_id`,
-`waypoint_template_id`, `fly_here`, `code`, `no_split_for_sudo`, `server_status`,
+`waypoint_template_id`, `backup_template_id` (with `cetmix_tower_backup`), `fly_here`, `code`, `no_split_for_sudo`, `server_status`,
 `variable_ids`, `secret_ids`
 
 - `name` and `action` are required.
@@ -41,6 +42,10 @@ Also read `_get_force_x2m_resolve_models` on the mixin, `server` and `server_tem
 - `jet_template_id`, `jet_action_id` and `waypoint_template_id` are written as
   references only. Exporting a command does not add the jet template to the file;
   include it yourself, or make sure it already exists on the target.
+
+With `cetmix_tower_backup`, `action: create_backup` selects `backup_template_id`
+(reference only). It requires a Jet and runs from a flight plan or scheduled
+Command task. See `cetmix-tower-backups`.
 
 ### `plan` — `cx.tower.plan`
 
@@ -179,6 +184,7 @@ link; new setups use Jet Git Projects + `git_project_upload`)
 `plan_install_id`, `plan_uninstall_id`, `plan_clone_same_server_id`,
 `plan_clone_different_server_id`, `variable_value_ids`, `action_ids`,
 `template_requires_ids`, `waypoint_template_ids`, `server_log_ids`, `scheduled_task_ids`
+With `cetmix_tower_backup`: `backup_template_ids` (`explode`).
 
 - `access_level` is **not** in this list — do not set it here.
 - `plan_prepare_id`, `plan_build_id`, `plan_start_id`, `plan_stop_id`, `plan_remove_id`
@@ -209,9 +215,22 @@ Eleven states ship with Tower — reference them, do not redefine them. See
 `reference`, `name`, `sequence`, `access_level`, `jet_template_id`, `plan_create_id`,
 `plan_arrive_id`, `plan_leave_id`, `plan_delete_id`, `note`
 
+With `cetmix_tower_backup`: `backup_template_id` (reference only). It replaces
+Create/Delete plans and must belong to the same Jet Template.
+
 Has `jet_template_id`, so it may be top-level or nested under `waypoint_template_ids`.
 
 ---
+
+### `backup_template` — `cx.tower.backup.template` _(nest under `jet_template.backup_template_ids`)_
+
+Requires `cetmix_tower_backup`. `reference`, `name`, `sequence`, `keep_last`, `note`,
+`plan_backup_id`, `plan_restore_id`, `plan_delete_id`.
+
+The three plan links use `include`; Backup and Restore are required. All plans,
+commands and Plan-action sub-plans must be Root. `jet_template_id` is not exported;
+the owning One2many supplies it. `keep_last` must be nonnegative. Runtime backups
+are not exported. See `cetmix-tower-backups`.
 
 ## Automation
 
@@ -220,6 +239,10 @@ Has `jet_template_id`, so it may be top-level or nested under `waypoint_template
 `reference`, `name`, `sequence`, `action`, `command_id`, `plan_id`, `interval_number`,
 `interval_type`, `next_call`, `last_call`, `monday`, `tuesday`, `wednesday`, `thursday`,
 `friday`, `saturday`, `sunday`, `custom_variable_value_ids`
+
+With `cetmix_tower_backup`: `action: backup` and `backup_template_id` (reference
+only). Assign only Jets of its Jet Template through the UI/API; bare servers are
+not supported. The optional link may be deferred during import.
 
 ### `scheduled_task_cv` — `cx.tower.scheduled.task.cv` _(nest under `custom_variable_value_ids`)_
 

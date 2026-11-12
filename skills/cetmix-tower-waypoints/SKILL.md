@@ -211,3 +211,10 @@ upgrade, and on failure the operator flies back. See `cetmix-tower-command-actio
 - [ ] Backups live outside anything the Destroy plan deletes, or the trade-off is noted
 - [ ] Dumps are taken consistently (app-level dump, or the app stopped first)
 - [ ] `note` explains what the waypoint captures and what it does not
+
+## Durable backups
+
+For recovery copies that must outlive a Jet or restore into a new Jet, use
+`cetmix-tower-backups`. With the backup module installed, a waypoint template can
+select `backup_template_id` instead of separate Create/Delete plans. Its optional
+Arrive/Leave plans restore in place and must use Root plans and commands.

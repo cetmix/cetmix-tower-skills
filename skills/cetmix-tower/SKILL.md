@@ -89,6 +89,7 @@ A complete, verified example of both shapes for the same request ("deploy Redis"
 | `cetmix-tower-files`           | `file_template`, `file`, `action: file_using_template` — only when env cannot express the format                                   |
 | `cetmix-tower-jets`            | `jet_template`, `jet_state`, `jet_action`, lifecycle graph, `deletable`, `server_log_ids`, dependencies                            |
 | `cetmix-tower-waypoints`       | `jet_waypoint_template` — snapshots and backups                                                                                    |
+| `cetmix-tower-backups`        | Durable Jet backups, Backup Templates, triggers, retention and restore into new Jets |
 | `cetmix-tower-servers`         | `server`, `server_template`, `server_log`, `os`, `tag`, `shortcut`                                                                 |
 | `cetmix-tower-automation`      | `scheduled_task`, `webhook`, `webhook_authenticator`, `git_project`                                                                |
 

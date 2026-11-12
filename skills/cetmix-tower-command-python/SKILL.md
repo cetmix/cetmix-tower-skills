@@ -275,3 +275,11 @@ Beyond the shared command fields (`name`, `reference`, `note`, `tag_ids`,
 - [ ] If the command sets `deletable`: False on the first Prepare line, True only as
       the last Destroy step; Remove does not unlock (hard rule 19)
 - [ ] `note` explains what the command does and what it writes
+
+## Backup context
+
+With `cetmix_tower_backup`, `backup` is the current sudo backup on operation lines
+and backup-waypoint Arrive/Leave lines; it is empty otherwise. Use
+`backup.update_metadata({...})` to save recovery metadata. `tower_backups` is the
+model shortcut. Custom values reach sub-plans; the object does not automatically
+follow. See `cetmix-tower-backups` for replay precedence and the access boundary.
