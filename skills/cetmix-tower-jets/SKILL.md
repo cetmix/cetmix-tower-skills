@@ -61,6 +61,7 @@ one-shot host action, a plain Flight Plan is the right answer — see
 | `waypoint_template_ids`                                        | Snapshot definitions; see `cetmix-tower-waypoints`                                                        |
 | `server_log_ids`                                               | **Required** (hard rule 20). Copied onto each Jet at create. A template with none is a defect. See _Logs_ below. |
 | `scheduled_task_ids`                                           | Copied onto Jets created from the template                                                                |
+| `metric_ids`                                                   | With `cetmix_tower_monitoring`: metrics every Jet gets, kept in sync; see `cetmix-tower-monitoring`        |
 | `note`                                                         | Required by convention                                                                                    |
 
 `access_level` is **not** a YAML field on `jet_template`. Neither is `icon`. The fields

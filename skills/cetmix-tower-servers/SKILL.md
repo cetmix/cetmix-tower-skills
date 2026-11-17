@@ -106,6 +106,8 @@ that runs after creation.
   filled. Use it for values that cannot have a sensible default, like a domain name.
 - `server_log_ids`, `shortcut_ids` and `scheduled_task_ids` are copied onto every new
   server.
+- With `cetmix_tower_monitoring`, `metric_ids` (metric references) gives every new
+  server a value per metric, once at creation. See `cetmix-tower-monitoring`.
 
 Server templates are Manager-and-above only; Users have no access.
 

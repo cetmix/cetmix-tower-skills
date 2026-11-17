@@ -91,6 +91,7 @@ A complete, verified example of both shapes for the same request ("deploy Redis"
 | `cetmix-tower-waypoints`       | `jet_waypoint_template` — snapshots and backups                                                                                    |
 | `cetmix-tower-servers`         | `server`, `server_template`, `server_log`, `os`, `tag`, `shortcut`                                                                 |
 | `cetmix-tower-automation`      | `scheduled_task`, `webhook`, `webhook_authenticator`, `git_project`                                                                |
+| `cetmix-tower-monitoring`      | `metric`, `metric_threshold`, collectors and `record_metric()`, template metrics, threshold actions                                |
 
 ## Delivery checklist
 

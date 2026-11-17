@@ -6,6 +6,8 @@ during import. A field is exported when it sets `yaml_export` in the YAML module
 - `cetmix_tower_yaml/models/*.py` — core models
 - `cetmix_tower_webhook/models/*.py` — `webhook`, `webhook_authenticator`
 - `cetmix_tower_git/models/*.py` — `git_*` models, plus extra fields on `plan_line`
+- `cetmix_tower_monitoring/models/*.py` — `metric`, `metric_threshold`,
+  `jet_template_metric`, plus `metric_ids` on `jet_template` and `server_template`
 
 `reference` is available on every model and is required on top-level records.
 `explode` nests the child. `include` writes a reference and, when related records
@@ -16,7 +18,7 @@ modules add fields to core models too (`cetmix_tower_git` adds
 `git_project_rel_ids` to `server` and two fields to `plan_line`):
 
 ```bash
-rg -n "yaml_export" <addons>/cetmix_tower_yaml/models <addons>/cetmix_tower_git/models <addons>/cetmix_tower_webhook/models
+rg -n "yaml_export" <addons>/cetmix_tower_yaml/models <addons>/cetmix_tower_git/models <addons>/cetmix_tower_webhook/models <addons>/cetmix_tower_monitoring/models
 ```
 
 Also read `_get_force_x2m_resolve_models` on the mixin, `server` and `server_template`.
@@ -156,7 +158,8 @@ link; new setups use Jet Git Projects + `git_project_upload`)
 
 `reference`, `name`, `color`, `os_id`, `tag_ids`, `note`, `ssh_port`, `ssh_username`,
 `ssh_key_id`, `ssh_auth_mode`, `use_sudo`, `variable_value_ids`, `server_log_ids`,
-`shortcut_ids`, `scheduled_task_ids`, `flight_plan_id`, `plan_delete_id`
+`shortcut_ids`, `scheduled_task_ids`, `flight_plan_id`, `plan_delete_id` With
+`cetmix_tower_monitoring` also: `metric_ids` (list of `metric` references)
 
 - `flight_plan_id` runs **after** a server is created; `plan_delete_id` **before**
   deletion.
@@ -180,6 +183,7 @@ link; new setups use Jet Git Projects + `git_project_upload`)
 `plan_install_id`, `plan_uninstall_id`, `plan_clone_same_server_id`,
 `plan_clone_different_server_id`, `variable_value_ids`, `action_ids`,
 `template_requires_ids`, `waypoint_template_ids`, `server_log_ids`, `scheduled_task_ids`
+With `cetmix_tower_monitoring` also: `metric_ids` (nested `jet_template_metric` lines)
 
 - `access_level` is **not** in this list — do not set it here.
 - `plan_prepare_id`, `plan_build_id`, `plan_start_id`, `plan_stop_id`, `plan_remove_id`
@@ -240,6 +244,36 @@ UI.
 
 `reference`, `name`, `code`, `allowed_ip_addresses`, `trusted_proxy_ips`,
 `variable_ids`, `secret_ids`
+
+---
+
+## Monitoring
+
+Needs `cetmix_tower_monitoring`. See the `cetmix-tower-monitoring` skill.
+
+### `metric` — `cx.tower.metric`
+
+`reference`, `name`, `active`, `unit`, `note`, `widget`, `show_on_kanban`,
+`stale_after_minutes`, `pull_data_minutes`, `command_id`, `plan_id`, `threshold_ids`
+
+- `command_id` / `plan_id` are the collector (`include`): set one or none.
+- Only Root can create or change metrics.
+
+### `metric_threshold` — `cx.tower.metric.threshold` _(nest under `metric.threshold_ids`)_
+
+`reference`, `sequence`, `condition`, `severity`, `value_float`, `action`, `command_id`,
+`plan_id`
+
+- `severity` is required unless `condition: stale`.
+- Override thresholds of one server or jet value are UI-only: metric values are not
+  exported.
+
+### `jet_template_metric` — `cx.tower.jet.template.metric` _(nest under `jet_template.metric_ids`)_
+
+`reference`, `metric_id`, `environment_ids`
+
+- `metric_id` and `environment_ids` are references only: the metric and environments
+  must exist or be in the same file.
 
 ---
 

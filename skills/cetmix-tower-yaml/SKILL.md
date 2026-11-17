@@ -62,6 +62,7 @@ Frequent mistakes:
 | `jet`                  | not importable — only `jet_template` |
 | `waypoint`             | `jet_waypoint_template`              |
 | `manifest` as a record | top-level `manifest:` key            |
+| `metric_value`         | not importable — values come from `record_metric()` |
 
 ## Field values
 
