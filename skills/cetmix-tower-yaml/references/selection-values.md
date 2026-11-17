@@ -155,6 +155,19 @@ With `interval_type: dow`, at least one of `monday`…`sunday` must be `true`.
 
 ---
 
+## Monitoring
+
+| Field                         | Values                                                         | Default    |
+| ----------------------------- | -------------------------------------------------------------- | ---------- |
+| `metric.widget`               | `progressbar` · `gauge` · `number`                             | `number`   |
+| `metric_threshold.condition`  | `>=` · `<=` · `>` · `<` · `==` · `stale` (quote the operators) | `>=`       |
+| `metric_threshold.severity`   | `warning` · `critical`                                         | —          |
+| `metric_threshold.action`     | `none` · `command` · `plan`                                    | `none`     |
+
+Verified against `cetmix_tower_monitoring/models/*.py`.
+
+---
+
 ## Colour fields
 
 `tag.color`, `plan.color`, `os.color`, `server.color`, `server_template.color`,

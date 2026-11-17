@@ -34,7 +34,8 @@ example) — its `references/hard-rules.md` is the canonical rule list — then
 element you are authoring: `cetmix-tower-command-actions`, `cetmix-tower-command-ssh`,
 `cetmix-tower-command-python`, `cetmix-tower-flight-plan`, `cetmix-tower-variables`,
 `cetmix-tower-secrets`, `cetmix-tower-files`, `cetmix-tower-jets`,
-`cetmix-tower-waypoints`, `cetmix-tower-servers`, `cetmix-tower-automation`.
+`cetmix-tower-waypoints`, `cetmix-tower-servers`, `cetmix-tower-automation`,
+`cetmix-tower-monitoring`.
 
 ## Hard rules
 

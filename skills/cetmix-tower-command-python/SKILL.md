@@ -69,6 +69,7 @@ Full table with types and caveats: `references/eval-context.md`.
 | `jet`, `jet_template`, `waypoint`                                                 | The Jet context, or `None`                                                                                                |
 | `tower`                                                                           | `cetmix.tower` helper — most methods are **deprecated**, see below                                                        |
 | `tower_servers`, `tower_jets`, `tower_commands`, `tower_plans`, `tower_waypoints` | Shortcuts to the corresponding models                                                                                     |
+| `metric`, `metric_value`, `tower_metrics`, `tower_metric_values`                  | With `cetmix_tower_monitoring` only; see `cetmix-tower-monitoring`                                                        |
 | `custom_values`                                                                   | Mutable dict for SSH, Python, and conditions in one plan run — **not** `file_using_template` (hard rule 17)               |
 | `re`, `time`, `datetime`, `dateutil`, `timezone`                                  | Time and regex                                                                                                            |
 | `requests`                                                                        | `get`, `post`, `delete`, `request`                                                                                        |

@@ -64,6 +64,19 @@ API, not imported.
 | `webhook`               | `cx.tower.webhook`               | HTTP endpoint that runs Python code when called. Root-only.     |
 | `webhook_authenticator` | `cx.tower.webhook.authenticator` | IP allowlist + custom auth code for webhooks.                   |
 
+## Monitoring
+
+Needs the `cetmix_tower_monitoring` module.
+
+| YAML model            | Odoo model                     | What it is                                                                                         |
+| --------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `metric`              | `cx.tower.metric`              | What is measured on servers and jets, how it is shown, its collector command or plan. Root-only.   |
+| `metric_threshold`    | `cx.tower.metric.threshold`    | Condition on a metric value: sets Warning/Critical/Stale and can run a command or plan.            |
+| `jet_template_metric` | `cx.tower.jet.template.metric` | A metric every jet of a template gets, optionally per environment.                                 |
+
+Metric values (`cx.tower.metric.value`) hold the current sample per server or jet. They
+are written by `record_metric()`, never imported.
+
 ## Git
 
 | YAML model        | Odoo model                 | What it is                                                                          |

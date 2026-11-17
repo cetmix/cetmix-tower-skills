@@ -26,6 +26,17 @@ command form's **Help** tab.
 | `custom_values`   | `dict`                         | Shared across SSH and Python commands of one flight plan run, and plan-line conditions. **Not** passed to `file_using_template` / `create_file()` (hard rule 17). Not persisted as a `variable.value` record. Written back to the plan run after the command finishes. |
 | `result`          | you assign it                  | `{"exit_code": int, "message": str}`                                                                                   |
 
+With `cetmix_tower_monitoring` installed, four more objects (see `cetmix-tower-monitoring`):
+
+| Name                  | Value                          | Notes                                                                 |
+| --------------------- | ------------------------------ | --------------------------------------------------------------------- |
+| `metric`              | `cx.tower.metric`              | Set only when a metric threshold runs the command (or its flight plan) |
+| `metric_value`        | `cx.tower.metric.value`        | Same; `value`, `max_value`, `state`, `last_update`                     |
+| `tower_metrics`       | `env["cx.tower.metric"]`       |                                                                       |
+| `tower_metric_values` | `env["cx.tower.metric.value"]` |                                                                       |
+
+`server` and `jet` records also get `record_metric(reference, value=, used=, total=)`.
+
 When the jet is set, `jet_template` is forced from `jet.jet_template_id`, so you never
 need to derive it yourself.
 

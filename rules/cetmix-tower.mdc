@@ -31,6 +31,7 @@ quoting it.
 | `cetmix-tower-waypoints` | `jet_waypoint_template` |
 | `cetmix-tower-servers` | `server`, `server_template`, `server_log`, `shortcut`, `os`, `tag` |
 | `cetmix-tower-automation` | `scheduled_task`, `webhook`, `git_*` |
+| `cetmix-tower-monitoring` | `metric`, `metric_threshold`, `record_metric()` |
 
 ## Hard rules
 

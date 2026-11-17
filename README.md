@@ -71,7 +71,8 @@ cetmix-tower-skills/
     │   └── references/lifecycle-patterns.md
     ├── cetmix-tower-waypoints/           jet_waypoint_template
     ├── cetmix-tower-servers/             server, server_template, server_log, shortcut, os, tag
-    └── cetmix-tower-automation/          scheduled_task, webhook, git_*
+    ├── cetmix-tower-automation/          scheduled_task, webhook, git_*
+    └── cetmix-tower-monitoring/          metric, metric_threshold, record_metric()
 ```
 
 ### What belongs where
